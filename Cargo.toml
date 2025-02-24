@@ -1,0 +1,103 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/*",
+  "bindings/smpl_py",
+  "examples/*",
+]
+
+# =====================================================================
+[workspace.package]
+authors = ["Radu Alexandru Rosu", "Aman Shenoy"]
+edition = "2021"
+rust-version = "1.69"
+version = "0.5.0"
+
+# =====================================================================
+[workspace.dependencies]
+# my crates
+smpl-rs = { path = "crates/smpl_rs", version = "=0.5.0", default-features = false }
+smpl-gloss-integration = { path = "crates/smpl_gloss_integration", version = "=0.5.0", default-features = false }
+smpl-utils = { path = "crates/smpl_utils", version = "=0.5.0", default-features = false }
+
+gloss-renderer = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+utils-rs = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-img = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss_py_macros = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-hecs = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+
+# =====================================================================
+# Third-party crates
+# =====================================================================
+log = "0.4"
+cfg-if = "1"
+image = { version= "0.25", default-features = false, features=["jpeg", "png", "tiff"] } #TODO maybe replace it with zune-image
+egui = {version = "0.29", default-features = false, features= ["default_fonts"]}
+nalgebra = {version = "0.32", default-features = false, features = ["serde-serialize-no-std"]}
+ndarray-npy = { version = "0.9", default-features = false, features = []}
+ndarray = { version = "0.16"  }
+pollster = "0.3"
+map-range = "0.1"
+wasm-timer = "0.2"
+rangetools = "0.1"
+enum-map = "2.6.0"
+indexmap = "2.1"
+itertools="0.12"
+num-derive = "0.4"
+base64 = "0.13"
+num-traits = { version = "0.2", default-features = false }
+# hecs = {git = "https://github.com/RaduAlexandru/hecs", rev="a46e17f", features=["macros"]}
+strum = "0.25"
+strum_macros = "0.25"
+serde_json = "1.0"
+smallvec = "1.11"
+abi_stable = "0.11.3"
+abi_stable_derive = "0.11.3"
+reqwest = { version = "0.12.0", features = ["json"] }
+gltf-json = { version = "1.4.1", features = ["extras", "extensions"] }
+dyn-clone ="1.0"
+burn = { version = "0.14", default-features = false, features=["ndarray", "wgpu", "candle", "autotune"]}
+#burn-ndarray = "0.13"
+wgpu       = { version = "22.1.0",  default-features = false, features = ["wgsl", "spirv", "webgl", "metal"] } 
+bytemuck = { version = "1.12", features = [ "derive" ] }
+futures = "0.3"
+wasm-bindgen="=0.2.96"
+
+# =====================================================================
+[profile.dev]
+opt-level = 1   # Make debug builds run faster
+panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm anyways).
+
+# =====================================================================
+# Optimize all dependencies even in debug builds (does not affect workspace packages):
+# =====================================================================
+[profile.dev.package."*"]
+# opt-level = 2
+opt-level = 3
+
+# =====================================================================
+[profile.release]
+# debug = true # good for profilers
+# TODO need more profiling but if we enable the following line the code seems slower
+# panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm anyways).
+lto = true
+# strip = false #trying to fix linux to mac compiling https://github.com/rust-lang/rust/issues/114411
+
+# =====================================================================
+[profile.bench]
+debug = true
+
+# =====================================================================
+[workspace.lints.clippy]
+#we set priority lower so that these lints can overwriteen by other ones with higher priority like the ones we do allow
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+#all the things we do allow. We set higher priority so we overwrite the "all" and "pedantic"
+module_name_repetitions = "allow"  
+must_use_candidate = "allow"
+missing_panics_doc = "allow"
+unused_self = "allow"
+explicit_iter_loop = "allow" #messes with hecs query.iter() and makes them super ugly
+module_inception = "allow"
+# =====================================================================

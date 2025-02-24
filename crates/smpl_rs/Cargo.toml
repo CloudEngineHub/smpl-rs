@@ -1,0 +1,134 @@
+[package]
+name = "smpl-rs"
+authors.workspace = true
+description = "SMPL body model"
+edition.workspace = true
+# homepage.workspace = true
+# license.workspace = true
+publish = false
+readme = "README.md"
+# repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+# include = [
+#   "../../LICENSE-APACHE",
+#   "../../LICENSE-MIT",
+#   "**/*.rs",
+#   "Cargo.toml",
+#   "data/*",
+# ]
+# default-run = "gloss-renderer"
+
+# [package.metadata.docs.rs]
+# all-features = true
+# targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
+
+
+[lib]
+# name = "gloss_renderer_lib"
+# crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"] #making a cdylib would conflict  in name with smpl_py which is named smpl_rs
+
+
+# [profile.release]
+# debug = true # good for profilers
+# TODO need more profiling but if we enable the following line the code seems slower
+# panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm anyways).
+# opt-level = 3
+# lto = true
+
+# [package.metadata.wasm-pack.profile.release]
+# wasm-opt = ['-O4']
+# wasm-opt = false
+# opt-level = 3
+# lto = true
+
+
+
+[dependencies]
+#local to package (packages that are in this workspace and only used in this crate)
+
+#workspace internal (packages that are in this workspace and are shared with other crates in the workspace)
+
+
+#workspace third-party (packages that are third party)
+log.workspace=true
+cfg-if.workspace=true
+nalgebra.workspace=true
+ndarray.workspace=true
+itertools.workspace=true
+rangetools.workspace=true
+smpl-utils.workspace=true
+wasm-timer.workspace=true
+serde_json.workspace=true
+enum-map.workspace=true
+indexmap.workspace=true
+strum.workspace=true
+strum_macros.workspace=true
+num-traits.workspace=true
+num-derive.workspace=true
+dyn-clone.workspace=true
+gloss-renderer.workspace=true
+gloss-img.workspace=true
+utils-rs.workspace=true
+burn.workspace=true
+wgpu.workspace=true
+bytemuck.workspace=true
+futures.workspace=true
+pollster.workspace=true
+wasm-bindgen.workspace=true
+reqwest.workspace=true
+ndarray-npy = { workspace = true, features = ["npz", "compressed_npz"]}
+gltf = "1.4.0"
+gltf-json = { version = "1.4.1", features = ["extras", "extensions"] }
+image.workspace=true
+base64.workspace = true
+# [features]
+# default = ["import", "utils", "names"]
+# extensions = ["gltf-json/extensions"]
+# extras = ["gltf-json/extras"]
+# names = ["gltf-json/names"]
+# utils = []
+# import = ["base64", "image", "urlencoding"]
+# KHR_lights_punctual = ["gltf-json/KHR_lights_punctual"]
+# KHR_materials_pbrSpecularGlossiness = ["gltf-json/KHR_materials_pbrSpecularGlossiness"]
+# KHR_materials_unlit = ["gltf-json/KHR_materials_unlit"]
+# KHR_texture_transform = ["gltf-json/KHR_texture_transform"]
+# KHR_materials_transmission = ["gltf-json/KHR_materials_transmission"]
+# KHR_materials_ior = ["gltf-json/KHR_materials_ior"]
+# KHR_materials_variants = ["gltf-json/KHR_materials_variants"]
+# KHR_materials_volume = ["gltf-json/KHR_materials_volume"]
+# KHR_materials_specular = ["gltf-json/KHR_materials_specular"]
+# KHR_materials_emissive_strength = ["gltf-json/KHR_materials_emissive_strength"]
+# image_jpeg_rayon = ["image/jpeg_rayon"]
+# guess_mime_type = []
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# ndarray-npy = { workspace = true, features = []}
+console_error_panic_hook = "0.1.6"
+console_log = "1.0"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4.30"
+web-sys = { version = "0.3", features = [
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Document",
+    "Window",
+    "Element",
+    "HtmlCanvasElement",
+]}
+js-sys = "0.3"
+
+# [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+
+
+[target.x86_64-unknown-linux-gnu] #slightly faster linking
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[lints]
+workspace = true
+
+
+

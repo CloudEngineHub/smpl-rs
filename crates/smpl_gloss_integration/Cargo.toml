@@ -1,0 +1,66 @@
+[package]
+name = "smpl-gloss-integration"
+authors.workspace = true
+description = "Integration between SMPL-rs and Gloss renderer"
+edition.workspace = true
+publish = false
+readme = "README.md"
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["with-gui"]
+with-gui=["dep:egui", "gloss-renderer/with-gui"]
+
+[dependencies]
+# Workspace internal (packages that are in this workspace and are shared with other crates in the workspace)
+smpl-rs.workspace=true
+smpl-utils.workspace=true
+gloss-hecs.workspace=true
+
+# Workspace third-party (packages that are third party)
+gloss-renderer.workspace=true
+utils-rs.workspace=true
+gloss-img.workspace=true
+egui = {version = "0.29", optional = true}
+log.workspace=true
+cfg-if.workspace=true
+nalgebra.workspace=true
+ndarray.workspace=true
+burn.workspace=true
+wasm-timer.workspace=true
+enum-map.workspace=true
+strum.workspace=true
+smallvec.workspace=true
+map-range.workspace=true
+image.workspace=true
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+abi_stable.workspace=true
+
+#TODO remove all of this , I just added it to get the log! macro
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+ndarray-npy = { workspace = true, features = []}
+console_error_panic_hook = "0.1.6"
+console_log = "1.0"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4.30"
+web-sys = { version = "0.3", features = [
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Document",
+    "Window",
+    "Element",
+    "HtmlCanvasElement",
+]}
+js-sys = "0.3"
+
+[target.x86_64-unknown-linux-gnu] #slightly faster linking
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[lints]
+workspace = true

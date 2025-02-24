@@ -1,0 +1,69 @@
+[package]
+name = "smpl_py"             # name of the rust crate
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+version.workspace = true
+
+[lib]
+# crate-type = ["cdylib", "rlib"] #cdylib is needed for pyo3 and rlib is needed so that is can be linked with other libs https://stackoverflow.com/a/4
+crate-type = ["cdylib"] #cdylib is needed for pyo3 and rlib is needed so that is can be linked with other libs https://stackoverflow.com/a/4
+#NO reason to link it with another lib because you can't share pyclasses anyway because of this https://github.com/PyO3/pyo3/issues/1444
+#this is the name we use to in python for the import
+name = "smpl_rs" # name of the .so library that the Python module will import
+
+
+[features]
+# default = ["extension-module"]
+default = ["with-gui"]
+with-gui=["smpl-gloss-integration/with-gui", "gloss-renderer/with-gui"]
+
+## The features we turn on when building the `rerun-sdk` PyPi package
+## for <https://pypi.org/project/rerun-sdk/>.
+# pypi = ["extension-module"]
+
+## We need to enable the `pyo3/extension-module` when building the SDK,
+## but we cannot enable it when building tests and benchmarks, so we
+## must make it an opt-in feature.
+## * <https://pyo3.rs/latest/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror>
+## * <https://pyo3.rs/latest/building_and_distribution.html#building-python-extension-modules>
+extension-module = ["pyo3/extension-module"]
+
+
+
+
+[dependencies]
+smpl-rs = {workspace= true, default-features = false}
+smpl-gloss-integration = {workspace= true, default-features = false}
+smpl-utils = {workspace= true, default-features = false}
+#gloss is compiled with default features=true so to not have any issues with ffi, we also compile this default-features=true
+gloss_py_macros = {workspace= true, default-features = true}
+gloss-renderer = {workspace= true, default-features = true}
+utils-rs = {workspace= true, default-features = true}
+gloss-hecs= {workspace= true, default-features = true}
+
+#local to package
+# nalgebra-numpy = "0.3" #super old and doesn't work anymore
+# pyo3 = { version = "0.18.3", features = ["abi3-py38"] }
+# pyo3 = { version = "0.17", features = ["macros", "multiple-pymethods"] } #downgrade to 0.17 because rigetti
+pyo3 = { version = "0.22", features = ["macros", "multiple-pymethods", "abi3-py38", "extension-module", "gil-refs"] } #downgrade to 0.17 because rigetti
+# rigetti-pyo3="0.1"
+numpy = { version = "0.22", features = ["nalgebra"] }
+# downcast-rs.workspace=true
+burn.workspace=true
+log.workspace=true
+#workspace internal gloss
+# gloss-renderer.workspace=true
+# easy-wgpu.workspace=true
+
+#workspace third-party
+# pollster.workspace=true
+# wgpu.workspace=true
+nalgebra.workspace=true
+ndarray.workspace=true
+
+[lints]
+workspace = true
+
+# [patch.crates-io]
+# nalgebra = "=0.33"

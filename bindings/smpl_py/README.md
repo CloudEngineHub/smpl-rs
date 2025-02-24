@@ -1,0 +1,1 @@
+env VIRTUAL_ENV=$(python3 -c 'import sys; print(sys.base_prefix)') maturin develop
