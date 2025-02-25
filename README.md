@@ -1,13 +1,13 @@
-# SMPL-RS Suite
+# SMPL-rs Suite
 
-SMPL-RS is the suite of SMPL functionality implemented in Rust. It contains code for creating smpl-bodies, rendering and modifying them.
+SMPL-rs is the suite of SMPL functionality implemented in Rust. It contains code for creating smpl-bodies, rendering and modifying them.
 
 ![SMPL Banner](imgs/banner.png)
 
 ## Features 
 - Run forward passes through the SMPL model (betas->mesh)
 - Control the SMPL model with betas or with measurements(height, weight, waist, etc.)
-- Interfaces with [Gloss] for rendering meshes both in native and web
+- Interfaces with [gloss](https://github.com/Meshcapade/gloss) for rendering meshes both in native and web
 <div align="center">
 <p align="middle">
   <img src="imgs/smpl.png" width="700"/>
@@ -16,7 +16,7 @@ SMPL-RS is the suite of SMPL functionality implemented in Rust. It contains code
 
 
 ## Dependencies 
-The main dependency is [Gloss] which will be downloaded and compiled automatically when building this package. 
+The main dependency is [gloss](https://github.com/Meshcapade/gloss) which will be downloaded and compiled automatically when building this package. 
 
 ## Installation 
 ### Install and run native
@@ -27,7 +27,7 @@ $ cargo run --bin smpl_minimal
 ```
 
 ### Install and Run Python 
-First follow the instructions in [Gloss] to build the python package. Afterwards, you can build the smpl_python bindings with: 
+First follow the instructions in [gloss](https://github.com/Meshcapade/gloss) to build the python package. Afterwards, you can build the smpl_python bindings with: 
 ```sh
 $ cd smpl-rs/bindings/smpl_py
 $ ./scripts/build_local.sh
@@ -67,15 +67,14 @@ $ cargo run --bin <example_name>
 Please read the file `examples/web/visualizer/README.md` 
 
 ## Info on usage
-- The SMPL suite renders using [Gloss] and therefore uses an Entity-Component-System (ECS) framework. For more info on ECS check [here](https://bevyengine.org/learn/book/getting-started/ecs/). However to be noted that we use [Hecs] for our ECS system but most of them are very similar.
+- The SMPL suite renders using [gloss](https://github.com/Meshcapade/gloss) and therefore uses an Entity-Component-System (ECS) framework. For more info on ECS check [here](https://bevyengine.org/learn/book/getting-started/ecs/). However to be noted that we use [Hecs] for our ECS system but most of them are very similar.
 - Components like Animation and Measurements regressor are added to entities and that dictates which systems it uses. If you don't want animation on the avatar, just comment out the component for it when creating the entity. 
-- For adding new functionality to [Gloss] we use callbacks. This is needed because on WASM the rendering loop cannot be explictly controlled.  
+- For adding new functionality to [gloss](https://github.com/Meshcapade/gloss) we use callbacks. This is needed because on WASM the rendering loop cannot be explictly controlled.  
 
 ## Todo
 - Cache components of the SMPL forward pass. Currently running a forward pass computes also pose correctives even if the pose hasn't changed. Ideally the pose-correctives would be cached because they take about 40% of the forward pass time. 
 - Implement texture loading for the WASM backend. 
 - Make Gloss an optional dependency since it's only needed for rendering not neceserely for the forward pass of SMPL
 
-
 ## Credits and Acknowledgements
-[Hecs]: <https://github.com/Ralith/hecs>
+- [Hecs]: <https://github.com/Ralith/hecs>

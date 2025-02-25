@@ -60,7 +60,7 @@ dependencies = [
 [[package]]
 name = "abi_stable_dummy_derive"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -195,6 +195,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "ash"
+version = "0.37.3+1.3.251"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39e9c3835d686b0a6084ab4234fcd1b07dbf6e4767dce60874b12356a25ecd4a"
+dependencies = [
+ "libloading 0.7.4",
 ]
 
 [[package]]
@@ -664,6 +673,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "com-rs"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf43edc576402991846b093a7ca18a3477e0ef9c588cde84964b5d3e43016642"
+
+[[package]]
 name = "com_macros"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -969,7 +984,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "log",
  "pollster",
- "wgpu",
+ "wgpu 22.1.0",
 ]
 
 [[package]]
@@ -977,6 +992,16 @@ name = "cursor-icon"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96a6ac251f4a2aca6b3f91340350eab87ae57c3f127ffeb585e92bd336717991"
+
+[[package]]
+name = "d3d12"
+version = "0.6.0"
+source = "git+https://github.com/gfx-rs/d3d12-rs?rev=b940b1d71#b940b1d71ab7083ae80eec697872672dc1f2bd32"
+dependencies = [
+ "bitflags 1.3.2",
+ "libloading 0.7.4",
+ "winapi",
+]
 
 [[package]]
 name = "d3d12"
@@ -1160,7 +1185,7 @@ dependencies = [
 [[package]]
 name = "easy-wgpu"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "bytemuck",
  "easy_wgpu_macros",
@@ -1177,13 +1202,13 @@ dependencies = [
  "thiserror",
  "type-map",
  "utils-rs",
- "wgpu",
+ "wgpu 22.1.0",
 ]
 
 [[package]]
 name = "easy_wgpu_macros"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -1227,7 +1252,7 @@ dependencies = [
  "thiserror",
  "type-map",
  "web-time",
- "wgpu",
+ "wgpu 22.1.0",
 ]
 
 [[package]]
@@ -1239,7 +1264,7 @@ dependencies = [
  "ahash",
  "egui",
  "log",
- "raw-window-handle",
+ "raw-window-handle 0.6.2",
  "web-time",
  "winit",
 ]
@@ -1556,7 +1581,7 @@ dependencies = [
  "smpl-utils",
  "strum",
  "strum_macros",
- "wgpu",
+ "wgpu 22.1.0",
 ]
 
 [[package]]
@@ -1854,7 +1879,7 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 [[package]]
 name = "gloss-hecs"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "abi_stable",
  "hashbrown 0.13.2",
@@ -1869,7 +1894,7 @@ dependencies = [
 [[package]]
 name = "gloss-img"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "bytemuck",
  "flate2",
@@ -1881,7 +1906,7 @@ dependencies = [
 [[package]]
 name = "gloss-memory"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "ahash",
  "backtrace",
@@ -1900,7 +1925,7 @@ dependencies = [
 [[package]]
 name = "gloss-renderer"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "abi_stable",
  "burn",
@@ -1922,7 +1947,7 @@ dependencies = [
  "gloss_renderer_macros",
  "image",
  "include-wgsl-oil",
- "indexmap",
+ "indexmap 2.6.0",
  "itertools",
  "js-sys",
  "ktx2",
@@ -1946,7 +1971,7 @@ dependencies = [
  "wasm-log",
  "wasm-timer",
  "web-sys",
- "wgpu",
+ "wgpu 22.1.0",
  "winapi",
  "winit",
 ]
@@ -1954,7 +1979,7 @@ dependencies = [
 [[package]]
 name = "gloss_py_macros"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -1963,11 +1988,23 @@ dependencies = [
 [[package]]
 name = "gloss_renderer_macros"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.87",
+]
+
+[[package]]
+name = "glow"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca0fe580e4b60a8ab24a868bc08e2f03cbcb20d3d676601fa909386713333728"
+dependencies = [
+ "js-sys",
+ "slotmap",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -2051,6 +2088,19 @@ dependencies = [
 
 [[package]]
 name = "gpu-allocator"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce95f9e2e11c2c6fadfce42b5af60005db06576f231f5c92550fdded43c423e8"
+dependencies = [
+ "backtrace",
+ "log",
+ "thiserror",
+ "winapi",
+ "windows 0.44.0",
+]
+
+[[package]]
+name = "gpu-allocator"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fdd4240fc91d3433d5e5b0fc5b67672d771850dc19bbee03c1381e19322803d7"
@@ -2059,7 +2109,18 @@ dependencies = [
  "presser",
  "thiserror",
  "winapi",
- "windows",
+ "windows 0.52.0",
+]
+
+[[package]]
+name = "gpu-descriptor"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc11df1ace8e7e564511f53af41f3e42ddc95b56fd07b3f4445d2a6048bc682c"
+dependencies = [
+ "bitflags 2.6.0",
+ "gpu-descriptor-types 0.1.2",
+ "hashbrown 0.14.5",
 ]
 
 [[package]]
@@ -2069,8 +2130,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c08c1f623a8d0b722b8b99f821eb0ba672a1618f0d3b16ddbee1cedd2dd8557"
 dependencies = [
  "bitflags 2.6.0",
- "gpu-descriptor-types",
+ "gpu-descriptor-types 0.2.0",
  "hashbrown 0.14.5",
+]
+
+[[package]]
+name = "gpu-descriptor-types"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bf0b36e6f090b7e1d8a4b49c0cb81c1f8376f72198c65dd3ad9ff3556b8b78c"
+dependencies = [
+ "bitflags 2.6.0",
 ]
 
 [[package]]
@@ -2094,7 +2164,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http",
- "indexmap",
+ "indexmap 2.6.0",
  "slab",
  "tokio",
  "tokio-util",
@@ -2115,6 +2185,12 @@ dependencies = [
  "rand_distr",
  "serde",
 ]
+
+[[package]]
+name = "hashbrown"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "hashbrown"
@@ -2141,6 +2217,21 @@ name = "hashbrown"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a9bfc1af68b1726ea47d3d5109de126281def866b33970e10fbab11b5dafab3"
+
+[[package]]
+name = "hassle-rs"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1397650ee315e8891a0df210707f0fc61771b0cc518c3023896064c5407cb3b0"
+dependencies = [
+ "bitflags 1.3.2",
+ "com-rs",
+ "libc",
+ "libloading 0.7.4",
+ "thiserror",
+ "widestring",
+ "winapi",
+]
 
 [[package]]
 name = "hassle-rs"
@@ -2172,7 +2263,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "hecs-macros"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2491,7 +2582,7 @@ dependencies = [
  "data-encoding",
  "glob",
  "lazy_static",
- "naga",
+ "naga 22.1.0",
  "naga-to-tokenstream",
  "naga_oil",
  "pathdiff",
@@ -2499,6 +2590,16 @@ dependencies = [
  "quote",
  "regex",
  "syn 2.0.87",
+]
+
+[[package]]
+name = "indexmap"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
+dependencies = [
+ "autocfg",
+ "hashbrown 0.12.3",
 ]
 
 [[package]]
@@ -2554,6 +2655,12 @@ dependencies = [
  "libc",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "iter-read"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c397ca3ea05ad509c4ec451fea28b4771236a376ca1c69fd5143aae0cf8f93c4"
 
 [[package]]
 name = "itertools"
@@ -2614,6 +2721,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a88f1bda2bd75b0452a14784937d796722fdebfe50df998aeb3f0b7603019a9"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "khronos-egl"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c2352bd1d0bceb871cb9d40f24360c8133c11d7486b68b5381c1dd1a32015e3"
+dependencies = [
+ "libc",
+ "libloading 0.7.4",
+ "pkg-config",
 ]
 
 [[package]]
@@ -2811,6 +2929,20 @@ dependencies = [
 
 [[package]]
 name = "metal"
+version = "0.25.0"
+source = "git+https://github.com/gfx-rs/metal-rs.git?rev=a6a0446#a6a04463db388e8fd3e99095ab4fbb87cbe9d69c"
+dependencies = [
+ "bitflags 2.6.0",
+ "block",
+ "core-graphics-types",
+ "foreign-types 0.5.0",
+ "log",
+ "objc",
+ "paste",
+]
+
+[[package]]
+name = "metal"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ecfd3296f8c56b7c1f6fbac3c71cefa9d78ce009850c45000015f206dc7fa21"
@@ -2865,6 +2997,25 @@ dependencies = [
 
 [[package]]
 name = "naga"
+version = "0.12.0"
+source = "git+https://github.com/gfx-rs/naga?rev=76003dc0035d53a474d366dcdf49d2e4d12e921f#76003dc0035d53a474d366dcdf49d2e4d12e921f"
+dependencies = [
+ "bit-set 0.5.3",
+ "bitflags 2.6.0",
+ "codespan-reporting",
+ "hexf-parse",
+ "indexmap 1.9.3",
+ "log",
+ "num-traits",
+ "rustc-hash",
+ "spirv 0.2.0+1.5.4",
+ "termcolor",
+ "thiserror",
+ "unicode-xid",
+]
+
+[[package]]
+name = "naga"
 version = "22.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bd5a652b6faf21496f2cfd88fc49989c8db0825d1f6746b1a71a6ede24a63ad"
@@ -2875,12 +3026,12 @@ dependencies = [
  "cfg_aliases 0.1.1",
  "codespan-reporting",
  "hexf-parse",
- "indexmap",
+ "indexmap 2.6.0",
  "log",
  "petgraph",
  "pp-rs",
  "rustc-hash",
- "spirv",
+ "spirv 0.3.0+sdk-1.3.268.0",
  "termcolor",
  "thiserror",
  "unicode-xid",
@@ -2892,7 +3043,7 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9071fcd5329e2c31bbdb24a5d1ae14f2c5bc3868f0123ddbcaf9f9a5b0f8bd12"
 dependencies = [
- "naga",
+ "naga 22.1.0",
  "proc-macro2",
  "quote",
  "syn 2.0.87",
@@ -2907,8 +3058,8 @@ dependencies = [
  "bit-set 0.5.3",
  "codespan-reporting",
  "data-encoding",
- "indexmap",
- "naga",
+ "indexmap 2.6.0",
+ "naga 22.1.0",
  "once_cell",
  "regex",
  "regex-syntax",
@@ -3013,7 +3164,7 @@ dependencies = [
  "log",
  "ndk-sys 0.6.0+11769913",
  "num_enum",
- "raw-window-handle",
+ "raw-window-handle 0.6.2",
  "thiserror",
 ]
 
@@ -3208,6 +3359,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "915b1b472bc21c53464d6c8461c9d3af805ba1ef837e1cac254428f4a77177b1"
 dependencies = [
  "malloc_buf",
+ "objc_exception",
 ]
 
 [[package]]
@@ -3411,6 +3563,15 @@ dependencies = [
  "objc2",
  "objc2-core-location",
  "objc2-foundation",
+]
+
+[[package]]
+name = "objc_exception"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad970fb455818ad6cba4c122ad012fae53ae8b4795f86378bce65e4f6bab2ca4"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -3647,7 +3808,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
- "indexmap",
+ "indexmap 2.6.0",
 ]
 
 [[package]]
@@ -3972,6 +4133,12 @@ checksum = "6c297679cb867470fa8c9f67dbba74a78d78e3e98d7cf2b08d6d71540f797332"
 dependencies = [
  "bitflags 1.3.2",
 ]
+
+[[package]]
+name = "raw-window-handle"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2ff9a1f06a88b01621b7ae906ef0211290d1c8a168a15542486a8f61c0833b9"
 
 [[package]]
 name = "raw-window-handle"
@@ -4327,6 +4494,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-pickle"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c762ad136a26407c6a80825813600ceeab5e613660d93d79a41f0ec877171e71"
+dependencies = [
+ "byteorder",
+ "iter-read",
+ "num-bigint",
+ "num-traits",
+ "serde",
+]
+
+[[package]]
 name = "serde_bytes"
 version = "0.11.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4496,6 +4676,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "smpl-measurements"
+version = "0.5.0"
+dependencies = [
+ "enum-map",
+ "indexmap 2.6.0",
+ "map-range",
+ "nalgebra",
+ "ndarray",
+ "ndarray-npy",
+ "rangetools",
+ "smpl-utils",
+ "strum",
+ "strum_macros",
+ "utils-rs",
+ "wasm-timer",
+]
+
+[[package]]
 name = "smpl-rs"
 version = "0.5.0"
 dependencies = [
@@ -4513,7 +4711,7 @@ dependencies = [
  "gltf",
  "gltf-json",
  "image",
- "indexmap",
+ "indexmap 2.6.0",
  "itertools",
  "js-sys",
  "log",
@@ -4534,7 +4732,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-timer",
  "web-sys",
- "wgpu",
+ "wgpu 22.1.0",
 ]
 
 [[package]]
@@ -4554,6 +4752,25 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "smpl_betas_measurements_regressor"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "enum-map",
+ "gloss-renderer",
+ "nalgebra",
+ "nalgebra-glm",
+ "ndarray",
+ "ndarray-npy",
+ "serde",
+ "serde-pickle",
+ "smpl-gloss-integration",
+ "smpl-measurements",
+ "smpl-rs",
+ "wasm-timer",
 ]
 
 [[package]]
@@ -4577,7 +4794,7 @@ dependencies = [
  "smpl-utils",
  "strum",
  "strum_macros",
- "wgpu",
+ "wgpu 22.1.0",
 ]
 
 [[package]]
@@ -4620,7 +4837,31 @@ dependencies = [
  "smpl-utils",
  "strum",
  "strum_macros",
- "wgpu",
+ "wgpu 22.1.0",
+]
+
+[[package]]
+name = "smplpp"
+version = "0.1.0"
+dependencies = [
+ "burn",
+ "egui",
+ "enum-map",
+ "futures",
+ "gloss-renderer",
+ "nalgebra",
+ "nalgebra-glm",
+ "ndarray",
+ "ndarray-npy",
+ "ndarray-rand",
+ "pollster",
+ "rand",
+ "smpl-gloss-integration",
+ "smpl-rs",
+ "smpl-utils",
+ "strum",
+ "strum_macros",
+ "wgpu 22.1.0",
 ]
 
 [[package]]
@@ -4641,6 +4882,16 @@ checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 dependencies = [
  "lock_api",
  "portable-atomic",
+]
+
+[[package]]
+name = "spirv"
+version = "0.2.0+1.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "246bfa38fe3db3f1dfc8ca5a2cdeb7348c78be2112740cc0ec8ef18b6d94f830"
+dependencies = [
+ "bitflags 1.3.2",
+ "num-traits",
 ]
 
 [[package]]
@@ -4756,7 +5007,7 @@ dependencies = [
  "libc",
  "ntapi",
  "once_cell",
- "windows",
+ "windows 0.52.0",
 ]
 
 [[package]]
@@ -4964,7 +5215,7 @@ version = "0.22.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
 dependencies = [
- "indexmap",
+ "indexmap 2.6.0",
  "serde",
  "serde_spanned",
  "toml_datetime",
@@ -5173,7 +5424,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 [[package]]
 name = "utils-rs"
 version = "0.5.0"
-source = "git+ssh://git@github.com/Meshcapade/gloss.git?branch=main#ecf57811fc420f3b3cd579c61c25940f217255d1"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=bb0e9593#bb0e95933165a45e2512071b8fb1aa026ce68d59"
 dependencies = [
  "abi_stable",
  "abi_stable_dummy_derive",
@@ -5198,7 +5449,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu",
+ "wgpu 22.1.0",
 ]
 
 [[package]]
@@ -5212,6 +5463,30 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "visualizer"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "console_log",
+ "egui",
+ "enum-map",
+ "gloss-renderer",
+ "js-sys",
+ "lazy_static",
+ "ndarray",
+ "once_cell",
+ "smpl-gloss-integration",
+ "smpl-measurements",
+ "smpl-rs",
+ "smpl-utils",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-timer",
+ "web-sys",
+ "wgpu 0.16.0",
+]
 
 [[package]]
 name = "walkdir"
@@ -5365,6 +5640,29 @@ checksum = "53a85b86a771b1c87058196170769dd264f66c0782acf1ae6cc51bfd64b39082"
 
 [[package]]
 name = "wgpu"
+version = "0.16.0"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=89f721f#89f721f8820b35431224cd2979809127097c2a28"
+dependencies = [
+ "arrayvec",
+ "cfg-if",
+ "js-sys",
+ "log",
+ "naga 0.12.0",
+ "parking_lot 0.12.3",
+ "profiling",
+ "raw-window-handle 0.5.2",
+ "smallvec",
+ "static_assertions",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "wgpu-core 0.16.0",
+ "wgpu-hal 0.16.0",
+ "wgpu-types 0.16.0",
+]
+
+[[package]]
+name = "wgpu"
 version = "22.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1d1c4ba43f80542cf63a0a6ed3134629ae73e8ab51e4b765a67f3aa062eb433"
@@ -5374,18 +5672,40 @@ dependencies = [
  "document-features",
  "js-sys",
  "log",
- "naga",
+ "naga 22.1.0",
  "parking_lot 0.12.3",
  "profiling",
- "raw-window-handle",
+ "raw-window-handle 0.6.2",
  "smallvec",
  "static_assertions",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "wgpu-core",
- "wgpu-hal",
- "wgpu-types",
+ "wgpu-core 22.1.0",
+ "wgpu-hal 22.0.0",
+ "wgpu-types 22.0.0",
+]
+
+[[package]]
+name = "wgpu-core"
+version = "0.16.0"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=89f721f#89f721f8820b35431224cd2979809127097c2a28"
+dependencies = [
+ "arrayvec",
+ "bit-vec 0.6.3",
+ "bitflags 2.6.0",
+ "codespan-reporting",
+ "log",
+ "naga 0.12.0",
+ "parking_lot 0.12.3",
+ "profiling",
+ "raw-window-handle 0.5.2",
+ "rustc-hash",
+ "smallvec",
+ "thiserror",
+ "web-sys",
+ "wgpu-hal 0.16.0",
+ "wgpu-types 0.16.0",
 ]
 
 [[package]]
@@ -5400,18 +5720,58 @@ dependencies = [
  "bytemuck",
  "cfg_aliases 0.1.1",
  "document-features",
- "indexmap",
+ "indexmap 2.6.0",
  "log",
- "naga",
+ "naga 22.1.0",
  "once_cell",
  "parking_lot 0.12.3",
  "profiling",
- "raw-window-handle",
+ "raw-window-handle 0.6.2",
  "rustc-hash",
  "smallvec",
  "thiserror",
- "wgpu-hal",
- "wgpu-types",
+ "wgpu-hal 22.0.0",
+ "wgpu-types 22.0.0",
+]
+
+[[package]]
+name = "wgpu-hal"
+version = "0.16.0"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=89f721f#89f721f8820b35431224cd2979809127097c2a28"
+dependencies = [
+ "android_system_properties",
+ "arrayvec",
+ "ash 0.37.3+1.3.251",
+ "bit-set 0.5.3",
+ "bitflags 2.6.0",
+ "block",
+ "core-graphics-types",
+ "d3d12 0.6.0",
+ "glow 0.12.3",
+ "gpu-alloc",
+ "gpu-allocator 0.22.0",
+ "gpu-descriptor 0.2.4",
+ "hassle-rs 0.10.0",
+ "js-sys",
+ "khronos-egl 4.1.0",
+ "libc",
+ "libloading 0.8.5",
+ "log",
+ "metal 0.25.0",
+ "naga 0.12.0",
+ "objc",
+ "parking_lot 0.12.3",
+ "profiling",
+ "range-alloc",
+ "raw-window-handle 0.5.2",
+ "renderdoc-sys",
+ "rustc-hash",
+ "smallvec",
+ "thiserror",
+ "wasm-bindgen",
+ "web-sys",
+ "wgpu-types 0.16.0",
+ "winapi",
 ]
 
 [[package]]
@@ -5422,41 +5782,51 @@ checksum = "f6bbf4b4de8b2a83c0401d9e5ae0080a2792055f25859a02bf9be97952bbed4f"
 dependencies = [
  "android_system_properties",
  "arrayvec",
- "ash",
+ "ash 0.38.0+1.3.281",
  "bit-set 0.6.0",
  "bitflags 2.6.0",
  "block",
  "cfg_aliases 0.1.1",
  "core-graphics-types",
- "d3d12",
- "glow",
+ "d3d12 22.0.0",
+ "glow 0.13.1",
  "glutin_wgl_sys",
  "gpu-alloc",
- "gpu-allocator",
- "gpu-descriptor",
- "hassle-rs",
+ "gpu-allocator 0.26.0",
+ "gpu-descriptor 0.3.0",
+ "hassle-rs 0.11.0",
  "js-sys",
- "khronos-egl",
+ "khronos-egl 6.0.0",
  "libc",
  "libloading 0.8.5",
  "log",
- "metal",
- "naga",
+ "metal 0.29.0",
+ "naga 22.1.0",
  "ndk-sys 0.5.0+25.2.9519653",
  "objc",
  "once_cell",
  "parking_lot 0.12.3",
  "profiling",
  "range-alloc",
- "raw-window-handle",
+ "raw-window-handle 0.6.2",
  "renderdoc-sys",
  "rustc-hash",
  "smallvec",
  "thiserror",
  "wasm-bindgen",
  "web-sys",
- "wgpu-types",
+ "wgpu-types 22.0.0",
  "winapi",
+]
+
+[[package]]
+name = "wgpu-types"
+version = "0.16.0"
+source = "git+https://github.com/gfx-rs/wgpu.git?rev=89f721f#89f721f8820b35431224cd2979809127097c2a28"
+dependencies = [
+ "bitflags 2.6.0",
+ "js-sys",
+ "web-sys",
 ]
 
 [[package]]
@@ -5516,6 +5886,15 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "windows"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e745dab35a0c4c77aa3ce42d595e13d2003d6902d6b08c9ef5fc326d08da12b"
+dependencies = [
+ "windows-targets 0.42.2",
+]
 
 [[package]]
 name = "windows"
@@ -5808,7 +6187,7 @@ dependencies = [
  "orbclient",
  "percent-encoding",
  "pin-project",
- "raw-window-handle",
+ "raw-window-handle 0.6.2",
  "redox_syscall 0.4.1",
  "rustix",
  "smol_str",
@@ -6006,7 +6385,7 @@ dependencies = [
  "crc32fast",
  "crossbeam-utils",
  "displaydoc",
- "indexmap",
+ "indexmap 2.6.0",
  "num_enum",
  "thiserror",
 ]
@@ -6022,7 +6401,7 @@ dependencies = [
  "crossbeam-utils",
  "displaydoc",
  "flate2",
- "indexmap",
+ "indexmap 2.6.0",
  "memchr",
  "thiserror",
  "zopfli",
