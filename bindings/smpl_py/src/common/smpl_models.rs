@@ -1,20 +1,15 @@
+use super::types::{PyGender, PySmplType};
+use crate::smpl_x::smpl_x::PySmplX;
+use burn::backend::Candle;
 use gloss_hecs::Entity;
 use gloss_renderer::scene::Scene;
-
 use pyo3::prelude::*;
+use smpl_rs::smpl_x::smpl_x_gpu::SmplXDynamic;
 use smpl_rs::{
     common::smpl_model::{SmplCache, SmplCacheDynamic},
     smpl_x::smpl_x_gpu::SmplXGPU,
 };
-
-use crate::smpl_x::smpl_x::PySmplX;
-
-use smpl_rs::smpl_x::smpl_x_gpu::SmplXDynamic;
-
-use super::types::{PyGender, PySmplType};
-use burn::backend::Candle;
-
-#[pyclass(name = "SmplCache", module = "smpl_rs.models", unsendable)] // it has to be unsendable because it does not implement Send: https://pyo3.rs/v0.19.1/class#must-be-send
+#[pyclass(name = "SmplCache", module = "smpl_rs.models", unsendable)]
 pub struct PySmplModels {
     inner: Option<SmplCacheDynamic>,
 }
@@ -22,7 +17,7 @@ pub struct PySmplModels {
 impl PySmplModels {
     #[staticmethod]
     #[pyo3(text_signature = "() -> SmplCache")]
-    #[allow(clippy::should_implement_trait)] //pyo3 doesn't work with traits
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self {
             inner: Some(SmplCacheDynamic::default()),
@@ -35,32 +30,29 @@ impl PySmplModels {
             .unwrap()
             .add_model_from_dynamic_device(py_model.inner.clone(), cache_models);
     }
-    //example of dynamic return type
-    //https://github.com/daemontus/pyo3/blob/48c90d95863dd582bbbb70f2ff776660820723dc/guide/src/class.md
-    //https://github.com/PyO3/pyo3/issues/1637
-    #[pyo3(text_signature = "($self, smpl_type: SmplType, gender: Gender) -> SmplX")]
+    #[pyo3(text_signature = "($self, smpl_type: SmplType, gender: Gender) -> Union[SmplX, SmplPP]")]
     pub fn get_model(&mut self, py: Python<'_>, smpl_type: PySmplType, gender: PyGender) -> Py<PyAny> {
-        // We match on the SmplCacheDynamic enum to handle different backends.
         println!("get_model {:?}", self.inner.is_some());
         match &self.inner.as_ref().unwrap() {
             SmplCacheDynamic::Candle(candle_model) => {
                 let ref_smpl_dyn = candle_model.get_model_box_ref(smpl_type.into(), gender.into()).unwrap();
-                let box_smpl = (**ref_smpl_dyn).clone_dyn(); // Box which owns a SmplModel
-
-                if let Some(smplx) = box_smpl.as_any().downcast_ref::<SmplXGPU<Candle>>() {
-                    let pysmplx = PySmplX {
-                        inner: SmplXDynamic::Candle(smplx.clone()),
-                    };
-                    Py::new(py, pysmplx).unwrap().to_object(py)
-                } else {
-                    panic!("We haven't yet implemented other models apart from SMPLX and SMPL++ for Candle");
+                let box_smpl = (**ref_smpl_dyn).clone_dyn();
+                match box_smpl.as_any() {
+                    smpl if smpl.downcast_ref::<SmplXGPU<Candle>>().is_some() => {
+                        let smplx = smpl.downcast_ref::<SmplXGPU<Candle>>().unwrap();
+                        let pysmplx = PySmplX {
+                            inner: SmplXDynamic::Candle(smplx.clone()),
+                        };
+                        Py::new(py, pysmplx).unwrap().to_object(py)
+                    }
+                    _ => {
+                        panic!("We haven't yet implemented other models apart from SMPLX and SMPL++ for Candle")
+                    }
                 }
             }
             _ => panic!("SmplPy does support non-candle backends yet!"),
         }
-        // pysmpl
     }
-
     #[pyo3(text_signature = "($self, smpl_type: SmplType, gender: Gender, path: str) -> None")]
     pub fn set_lazy_loading(&mut self, smpl_type: PySmplType, gender: PyGender, path: &str) {
         self.inner.as_mut().unwrap().set_lazy_loading(smpl_type.into(), gender.into(), path);

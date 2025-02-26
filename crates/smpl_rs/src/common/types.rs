@@ -2,9 +2,7 @@ use enum_map::Enum;
 use num_derive::FromPrimitive;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-
 /// Various ``SmplModel`` types
-// (DO NOT CHANGE THE ORDER, since it matches the one in the smpl codec)
 #[derive(Clone, Copy, Debug, Enum, FromPrimitive, PartialEq)]
 pub enum SmplType {
     Smpl = 0,
@@ -13,40 +11,33 @@ pub enum SmplType {
     Supr,
     SmplPP,
 }
-
 #[derive(Clone, Copy, PartialEq)]
 pub enum AngleType {
     AxisAngle,
     Euler,
 }
-
-//(DO NOT CHANGE THE ORDER, since it matches the one in the smpl codec)
 #[derive(Clone, Copy, PartialEq, Debug, Enum, FromPrimitive)]
 pub enum Gender {
     Neutral = 0,
     Male,
     Female,
 }
-
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum UpAxis {
-    Y, //default in opengl
-    Z, //default in blender
+    Y,
+    Z,
 }
-
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum GltfOutputType {
     Standard,
     Binary,
 }
-
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub enum GltfCompatibilityMode {
     Smpl,
     Unreal,
 }
-
 /// Dummy class just to be able to get the right size for chunk header (never
 /// really used)
 #[derive(Copy, Clone, Debug)]

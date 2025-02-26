@@ -1,15 +1,12 @@
 use crate::{common::pose_parts::PosePart, smpl_h::smpl_h};
 use enum_map::EnumMap;
 use std::ops::Range;
-
 pub struct PosePartRanges {
     pub parts2jointranges: EnumMap<PosePart, Range<usize>>,
 }
 impl PosePartRanges {
     pub fn empty() -> Self {
         let mut parts2jointranges: EnumMap<PosePart, Range<usize>> = EnumMap::default();
-
-        // smplx ranges
         let mut cur_joints_added = 0;
         parts2jointranges[PosePart::RootRotation] = 0..1;
         cur_joints_added += 1;

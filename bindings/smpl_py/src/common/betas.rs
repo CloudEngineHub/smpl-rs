@@ -6,9 +6,7 @@ use numpy::PyArrayMethods;
 use numpy::{PyArray1, PyReadonlyArray1, ToPyArray};
 use pyo3::prelude::*;
 use smpl_rs::common::betas::Betas;
-
 #[pyclass(name = "Betas", module = "smpl_rs.components", unsendable)]
-// it has to be unsendable because it does not implement Send: https://pyo3.rs/v0.19.1/class#must-be-send
 #[derive(Clone, PyComponent)]
 pub struct PyBetas {
     pub inner: Betas,
@@ -23,7 +21,7 @@ impl PyBetas {
     }
     #[staticmethod]
     #[pyo3(text_signature = "() -> Betas")]
-    #[allow(clippy::should_implement_trait)] //pyo3 doesn't work with traits
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self { inner: Betas::default() }
     }

@@ -1,18 +1,15 @@
 pub const NUM_BODY_JOINTS: usize = 21;
 pub const NUM_HAND_JOINTS: usize = 15;
 pub const NUM_FACE_JOINTS: usize = 3;
-pub const NUM_JOINTS: usize = NUM_BODY_JOINTS + 2 * NUM_HAND_JOINTS + NUM_FACE_JOINTS; //54 joints
+pub const NUM_JOINTS: usize = NUM_BODY_JOINTS + 2 * NUM_HAND_JOINTS + NUM_FACE_JOINTS;
 pub const NECK_IDX: usize = 12;
 pub const NUM_VERTS: usize = 10475;
 pub const NUM_VERTS_UV_MESH: usize = 11307;
 pub const NUM_FACES: usize = 20908;
-pub const FULL_SHAPE_SPACE_DIM: usize = 400; //contains both the shape dirs(300betas) and the expression dirs(100 expression
-                                             // coeffs)
+pub const FULL_SHAPE_SPACE_DIM: usize = 400;
 pub const SHAPE_SPACE_DIM: usize = 300;
 pub const EXPRESSION_SPACE_DIM: usize = 100;
 pub const NUM_POSE_BLEND_SHAPES: usize = NUM_JOINTS * 9;
-
-// 55 joints here, since the pelvis (origin) is a joint in this respect
 pub const JOINT_NAMES_UNREAL: [&str; 55] = [
     "pelvis",
     "thigh_l",
@@ -70,8 +67,6 @@ pub const JOINT_NAMES_UNREAL: [&str; 55] = [
     "thumb_02_r",
     "thumb_03_r",
 ];
-
-// 55 joints here, since the pelvis (origin) is a joint in this respect
 pub const JOINT_NAMES: [&str; 55] = [
     "pelvis",
     "left_hip",
@@ -129,7 +124,6 @@ pub const JOINT_NAMES: [&str; 55] = [
     "right_thumb2",
     "right_thumb3",
 ];
-
 pub const PARENT_ID_PER_JOINT: [u32; 55] = [
     4_294_967_295,
     0,

@@ -1,6 +1,6 @@
-# SMPL-rs Suite
+# Smpl-rs
 
-SMPL-rs is the suite of SMPL functionality implemented in Rust. It contains code for creating smpl-bodies, rendering and modifying them.
+Smpl-rs is the suite of SMPL functionality implemented in Rust over [gloss](https://github.com/Meshcapade/gloss). It contains code for creating smpl-bodies, rendering and modifying them.
 
 ![SMPL Banner](imgs/banner.png)
 
@@ -70,11 +70,6 @@ Please read the file `examples/web/visualizer/README.md`
 - The SMPL suite renders using [gloss](https://github.com/Meshcapade/gloss) and therefore uses an Entity-Component-System (ECS) framework. For more info on ECS check [here](https://bevyengine.org/learn/book/getting-started/ecs/). However to be noted that we use [Hecs] for our ECS system but most of them are very similar.
 - Components like Animation and Measurements regressor are added to entities and that dictates which systems it uses. If you don't want animation on the avatar, just comment out the component for it when creating the entity. 
 - For adding new functionality to [gloss](https://github.com/Meshcapade/gloss) we use callbacks. This is needed because on WASM the rendering loop cannot be explictly controlled.  
-
-## Todo
-- Cache components of the SMPL forward pass. Currently running a forward pass computes also pose correctives even if the pose hasn't changed. Ideally the pose-correctives would be cached because they take about 40% of the forward pass time. 
-- Implement texture loading for the WASM backend. 
-- Make Gloss an optional dependency since it's only needed for rendering not neceserely for the forward pass of SMPL
 
 ## Credits and Acknowledgements
 - [Hecs]: <https://github.com/Ralith/hecs>

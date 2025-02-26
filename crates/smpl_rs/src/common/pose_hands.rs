@@ -1,7 +1,6 @@
 use enum_map::Enum;
 use ndarray as nd;
-use strum_macros::EnumIter; // 0.17.1
-
+use strum_macros::EnumIter;
 /// Enum for hand type
 #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug, Enum, EnumIter)]
 pub enum HandType {

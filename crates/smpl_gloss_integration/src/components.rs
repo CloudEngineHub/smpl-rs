@@ -1,10 +1,6 @@
-use std::ops::AddAssign;
-
-// use gloss_hecs::Entity;
-
 use nalgebra as na;
 use smpl_utils::numerical::{map, smootherstep};
-
+use std::ops::AddAssign;
 #[derive(Clone)]
 pub struct GlossInterop {
     pub with_uv: bool,
@@ -14,27 +10,9 @@ impl Default for GlossInterop {
         Self { with_uv: true }
     }
 }
-
 /// Indication that an entity needs to be followed
 #[derive(Clone)]
 pub struct Follow;
-
-// // We work with frames since its easier to work with the FPS slider
-// // The interval would misbehave if we did time, since changing fps means total time changes
-// // So the interval being in seconds would end up at a completely different part of the anim
-// // We convert to time, given the fps at that instant
-// pub struct SmplInterval {
-//     pub start: usize,
-//     pub end: usize,
-// }
-
-// impl SmplInterval {
-//     #[allow(clippy::cast_precision_loss)]
-//     pub fn is_within_interval(&self, time: f32, fps: f32) -> bool {
-//         time >= (self.start as f32 / fps) && time <= (self.end as f32 / fps)
-//     }
-// }
-
 /// Enum for follower type
 #[derive(Clone)]
 pub enum FollowerType {
@@ -42,7 +20,6 @@ pub enum FollowerType {
     Lights,
     CamAndLights,
 }
-
 /// Parameters for the follower
 #[derive(Clone)]
 pub struct FollowParams {
@@ -68,11 +45,9 @@ impl Default for FollowParams {
         }
     }
 }
-
 /// Resource to indicate that we should follow the animation of a certain entity
 #[derive(Clone)]
 pub struct Follower {
-    // pub entity: Entity,
     point: na::Point3<f32>,
     is_first_time: bool,
     pub params: FollowParams,
@@ -80,7 +55,6 @@ pub struct Follower {
 impl Follower {
     pub fn new(params: FollowParams) -> Self {
         Self {
-            // entity,
             point: na::Point3::default(),
             is_first_time: true,
             params,
@@ -94,36 +68,21 @@ impl Follower {
         } else {
             let diff = point_to_follow - cur_follow;
             let dist = diff.norm();
-            let max_strength = self.params.max_strength * dt_sec; //increase the strentght if frames take longer
-                                                                  //for some reason map_range doesn't clamp so the strength normalized actually
-                                                                  // can have higher values than 1.0
-                                                                  // let mut strength_normalized = dist.map_range(0.0..0.3, 0.0..1.0); //lower
-                                                                  // than 0.15cm we don't move the camera, higher than that and we start
-                                                                  // increasing the strength of movement
+            let max_strength = self.params.max_strength * dt_sec;
             let mut strength_normalized = map(dist, self.params.dist_start, self.params.dist_end, 0.0, 1.0);
-
             strength_normalized = smootherstep(0.0, 1.0, strength_normalized);
-            strength_normalized = strength_normalized.clamp(0.2, 1.0); //instead of having the strength go from 0.0..1.0 we make it between 0.01..1.0
-                                                                       // so that we never get a strenght of zero which means we completely stop moving
-                                                                       // and never reach our goal.
-                                                                       // println!("strength_normalized_smootstep is {}", strength_normalized);
-            let strength = (strength_normalized * max_strength).clamp(0.0, 1.0); //we clamp to maximum 1 because we don't want to overshoot which can happen on
-                                                                                 // web when the viewer doesn't update and therefore the dt_sec becomes quite
-                                                                                 // large when we suddenly decide to render.
-
+            strength_normalized = strength_normalized.clamp(0.2, 1.0);
+            let strength = (strength_normalized * max_strength).clamp(0.0, 1.0);
             let prev_followed_point = self.point;
-            let cam_user_movement = cur_follow - prev_followed_point; //the user might still want to move the camera a little bit, so we add a slight
-                                                                      // deviation towards the point that the user currently wants to follow
+            let cam_user_movement = cur_follow - prev_followed_point;
             self.point.add_assign(diff * strength);
             self.point.add_assign(cam_user_movement);
         }
     }
-
     /// Get the point being followed
     pub fn get_point_follow(&self, _name: &str) -> na::Point3<f32> {
         self.point
     }
-
     /// Reset the follower
     pub fn reset(&mut self) {
         self.is_first_time = true;

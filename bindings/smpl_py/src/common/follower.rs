@@ -1,11 +1,9 @@
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
-
 use pyo3::prelude::*;
 use smpl_gloss_integration::components::{Follow, FollowParams, Follower, FollowerType};
 use smpl_utils::convert_enum_from;
-
 #[pyclass(name = "FollowerType", module = "smpl_rs.types", unsendable, eq, eq_int)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum PyFollowerType {
@@ -15,9 +13,7 @@ pub enum PyFollowerType {
     CamAndLights,
 }
 convert_enum_from!(PyFollowerType, FollowerType, Cam, Lights, CamAndLights,);
-
 #[pyclass(name = "Follower", module = "smpl_rs.components", unsendable)]
-// it has to be unsendable because it does not implement Send: https://pyo3.rs/v0.19.1/class#must-be-send
 #[derive(Clone, PyComponent)]
 pub struct PyFollower {
     pub inner: Follower,
@@ -25,7 +21,15 @@ pub struct PyFollower {
 #[pymethods]
 impl PyFollower {
     #[new]
-    #[pyo3(signature = (max_strength=None, dist_start=None, dist_end=None, follower_type=None, follow_all=None))]
+    #[pyo3(
+        signature = (
+            max_strength = None,
+            dist_start = None,
+            dist_end = None,
+            follower_type = None,
+            follow_all = None
+        )
+    )]
     #[pyo3(
         text_signature = "(max_strength: Optional[float] = None, dist_start: Optional[float] = None, dist_end: Optional[float] = None, follower_type: Optional[FollowerType] = None, follow_all: Optional[bool] = None) -> Follower"
     )]
@@ -36,7 +40,6 @@ impl PyFollower {
         follower_type: Option<PyFollowerType>,
         follow_all: Option<bool>,
     ) -> Self {
-        // let entity = Entity::from_bits(entity_bits).unwrap();
         let def = FollowParams::default();
         let params = FollowParams {
             max_strength: max_strength.unwrap_or(def.max_strength),
@@ -50,9 +53,7 @@ impl PyFollower {
         }
     }
 }
-
 #[pyclass(name = "Follow", module = "smpl_rs.components", unsendable)]
-// it has to be unsendable because it does not implement Send: https://pyo3.rs/v0.19.1/class#must-be-send
 #[derive(Clone, PyComponent)]
 pub struct PyFollow {
     pub inner: Follow,

@@ -1,17 +1,14 @@
+use super::entity_builder::PyEntityBuilderSmplRs;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
-use pyo3::prelude::*;
-use smpl_gloss_integration::codec::SmplCodecGloss;
-use smpl_rs::codec::codec::SmplCodec;
-
-use super::entity_builder::PyEntityBuilderSmplRs;
 use ndarray as nd;
 use numpy::PyArrayMethods;
 use numpy::{PyArray1, PyReadonlyArray1, ToPyArray};
-
+use pyo3::prelude::*;
+use smpl_gloss_integration::codec::SmplCodecGloss;
+use smpl_rs::codec::codec::SmplCodec;
 #[pyclass(name = "SmplCodec", module = "smpl_rs.codec", unsendable)]
-// it has to be unsendable because it does not implement Send: https://pyo3.rs/v0.19.1/class#must-be-send
 #[derive(Clone, PyComponent)]
 pub struct PySmplCodec {
     pub inner: SmplCodec,
@@ -20,7 +17,7 @@ pub struct PySmplCodec {
 impl PySmplCodec {
     #[staticmethod]
     #[pyo3(text_signature = "() -> SmplCodec")]
-    #[allow(clippy::should_implement_trait)] //pyo3 doesn't work with traits
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self { inner: SmplCodec::default() }
     }

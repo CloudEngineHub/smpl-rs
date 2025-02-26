@@ -1,13 +1,7 @@
 pub const NUM_BODY_JOINTS: usize = 21;
 pub const NUM_HAND_JOINTS: usize = 15;
-pub const NUM_JOINTS: usize = NUM_BODY_JOINTS + 2 * NUM_HAND_JOINTS; // without the root joint
-                                                                     // TODO figure out the rest of the values below
-                                                                     // pub const NUM_VERTS: usize = 10475;
-                                                                     // pub const NUM_VERTS_UV_MESH: usize = 11307;
-                                                                     // pub const NUM_FACES: usize = 20908;
-                                                                     // pub const SHAPE_SPACE_DIM: usize = 400;
+pub const NUM_JOINTS: usize = NUM_BODY_JOINTS + 2 * NUM_HAND_JOINTS;
 pub const NUM_POSE_BLEND_SHAPES: usize = NUM_JOINTS * 9;
-
 pub const JOINT_NAMES: [&str; 52] = [
     "pelvis",
     "left_hip",
@@ -62,7 +56,6 @@ pub const JOINT_NAMES: [&str; 52] = [
     "right_thumb2",
     "right_thumb3",
 ];
-
 pub const PARENT_ID_PER_JOINT: [u32; 52] = [
     4_294_967_295,
     0,

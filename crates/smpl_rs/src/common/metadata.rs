@@ -1,16 +1,14 @@
-use crate::{
-    smpl_h::{smpl_h, smpl_h_pose_parts},
-    smpl_x::{smpl_x, smpl_x_hands::SmplXHands, smpl_x_pose_parts},
-};
-
 use super::{
     pose_hands::{HandPair, HandType},
     pose_parts::PosePart,
     types::SmplType,
 };
+use crate::{
+    smpl_h::{smpl_h, smpl_h_pose_parts},
+    smpl_x::{smpl_x, smpl_x_hands::SmplXHands, smpl_x_pose_parts},
+};
 use enum_map::EnumMap;
 use std::ops::Range;
-
 #[derive(Default)]
 pub struct SmplMetadata {
     pub num_body_joints: usize,
@@ -23,13 +21,12 @@ pub struct SmplMetadata {
     pub num_verts_uv_mesh: usize,
     pub num_faces: usize,
     pub shape_space_dim: usize,
-    pub hand_poses: EnumMap<HandType, HandPair>, // Maps from the handtype to the pose of the two hands
+    pub hand_poses: EnumMap<HandType, HandPair>,
     pub parts2jointranges: EnumMap<PosePart, Range<usize>>,
     pub joint_parents: Vec<u32>,
     pub joint_names: Vec<String>,
     pub pose_dim: usize,
 }
-
 /// # Panics
 /// Will panic if the ``smpl_type`` is unknown
 pub fn smpl_metadata(smpl_type: &SmplType) -> SmplMetadata {
@@ -67,6 +64,6 @@ pub fn smpl_metadata(smpl_type: &SmplType) -> SmplMetadata {
                 ..Default::default()
             }
         }
-        _ => panic!("Unkown Smpl Model"),
+        _ => panic!("Unknown Smpl Model"),
     }
 }

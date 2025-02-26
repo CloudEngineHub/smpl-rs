@@ -1,11 +1,9 @@
+use super::pose_chunked::PoseChunked;
 use crate::common::{
     metadata::{smpl_metadata, SmplMetadata},
     pose::Pose,
     types::SmplType,
 };
-
-use super::pose_chunked::PoseChunked;
-
 /// Will remap the pose from a certain model to another one. For example from
 /// smplh to smplx. This is because different models have different number of
 /// joints for each part.
@@ -27,14 +25,9 @@ impl PoseRemap {
             dest_metadata,
         }
     }
-
     pub fn remap(&self, pose: &Pose) -> Pose {
-        //origin_pose -> chunked
         let origin_chunked = PoseChunked::new(pose, &self.origin_metadata);
-        //chunked -> destination
         let mut new_pose = origin_chunked.to_pose(&self.dest_metadata, self.destination);
-        //TODO ideally the remap would be a remapper.apply(pose) and it wouldn't return
-        // a new one so that we avoid things like this where we need to copy state again
         new_pose.retargeted = pose.retargeted;
         new_pose
     }

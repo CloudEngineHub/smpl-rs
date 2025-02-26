@@ -1,6 +1,5 @@
 use enum_map::Enum;
-use strum_macros::EnumIter; // 0.17.1
-
+use strum_macros::EnumIter;
 /// Enum for pose parts, for chunking
 #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug, Enum, EnumIter)]
 pub enum PosePart {

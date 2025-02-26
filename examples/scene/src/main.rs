@@ -1,5 +1,4 @@
 use gloss_renderer::viewer::Viewer;
-
 use gloss_renderer::{config::LogLevel, gloss_setup_logger};
 use smpl_gloss_integration::{
     components::GlossInterop,
@@ -14,23 +13,15 @@ use smpl_rs::common::{
     types::{Gender, SmplType},
 };
 use std::path::Path;
-
 fn main() {
-    gloss_setup_logger(LogLevel::Info, None); // Call only once per process
+    gloss_setup_logger(LogLevel::Info, None);
     let config_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("config/config.toml");
     let mut viewer = Viewer::new(config_path.to_str());
-
     let mut smpl_models = SmplCacheDynamic::default();
-
-    // Multi person scenes have only Neutrals
     smpl_models.set_lazy_loading(SmplType::SmplX, Gender::Neutral, "./data/smplx/SMPLX_neutral_array_f32_slim.npz");
-
     let scene_path = "./data/mcs/boxing.mcs";
-
     let mut mcs_codec = McsCodec::from_file(scene_path);
     let builders = mcs_codec.to_entity_builders();
-
-    // Add all entity builders
     for mut builder in builders {
         if !builder.has::<Betas>() {
             builder.add(Betas::default());
@@ -44,15 +35,9 @@ fn main() {
         wrap_behaviour: AnimWrap::Reverse,
         ..Default::default()
     };
-    let smpl_scene = SceneAnimation::new_with_config(mcs_codec.num_frames, config); // longer than the anim; for testing
-
-    //resources shared between all entities
+    let smpl_scene = SceneAnimation::new_with_config(mcs_codec.num_frames, config);
     viewer.scene.add_resource(smpl_scene);
     viewer.scene.add_resource(smpl_models);
-
-    // Plugins which contains all the systems (represent the logic that will run on
-    // every frame depending on the entity components)
     viewer.insert_plugin(&SmplPlugin::new(true));
-
     viewer.run();
 }

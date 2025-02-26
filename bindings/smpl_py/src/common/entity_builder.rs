@@ -1,12 +1,9 @@
 use gloss_hecs::{Entity, EntityBuilder};
 use gloss_renderer::scene::Scene;
-
 use pyo3::prelude::*;
-
 #[pyclass(name = "EntityBuilderSmplRs", module = "smpl_rs.builders", unsendable)]
-// it has to be unsendable because it does not implement Send: https://pyo3.rs/v0.19.1/class#must-be-send
 pub struct PyEntityBuilderSmplRs {
-    pub inner: Option<EntityBuilder>, //need to have it as an option because we need to be able to move out of PyVerts using .take()
+    pub inner: Option<EntityBuilder>,
 }
 impl PyEntityBuilderSmplRs {
     pub fn new(builder: EntityBuilder) -> Self {

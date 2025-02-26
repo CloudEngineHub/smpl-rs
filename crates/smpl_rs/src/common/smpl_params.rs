@@ -1,6 +1,5 @@
 use super::types::{Gender, SmplType};
 use crate::codec::codec::SmplCodec;
-
 /// Params that will influence various components. For example `pose_corrective`
 /// will influence animation, Pose, `PoseDestination`
 #[derive(Clone)]
@@ -26,7 +25,6 @@ impl SmplParams {
             enable_pose_corrective,
         }
     }
-
     pub fn new_from_smpl_codec(codec: &SmplCodec) -> Self {
         Self {
             smpl_type: codec.smpl_type(),
@@ -34,8 +32,7 @@ impl SmplParams {
             enable_pose_corrective: true,
         }
     }
-
-    #[cfg(not(target_arch = "wasm32"))] //wasm cannot compile the zip library so we cannot read npz
+    #[cfg(not(target_arch = "wasm32"))]
     #[allow(clippy::cast_possible_truncation)]
     pub fn new_from_smpl_file(path: &str) -> Self {
         let codec = SmplCodec::from_file(path);
