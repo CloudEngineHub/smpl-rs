@@ -159,6 +159,7 @@ impl SmplCacheDynamic {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn add_model_from_type(&mut self, smpl_type: SmplType, path: &str, gender: Gender, max_num_betas: usize, num_expression_components: usize) {
         match smpl_type {
             SmplType::SmplX => {

@@ -15,9 +15,9 @@ name = "smpl_rs" # name of the .so library that the Python module will import
 
 [features]
 # default = ["extension-module"]
-default = ["with-gui"]
+default = ["with-gui", "private"]
 with-gui=["smpl-gloss-integration/with-gui", "gloss-renderer/with-gui"]
-
+private=["smpl-rs/private"]
 ## The features we turn on when building the `rerun-sdk` PyPi package
 ## for <https://pypi.org/project/rerun-sdk/>.
 # pypi = ["extension-module"]
