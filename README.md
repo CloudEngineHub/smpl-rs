@@ -18,6 +18,13 @@ Smpl-rs is the suite of SMPL functionality implemented in Rust over [gloss](http
 ## Dependencies 
 The main dependency is [gloss](https://github.com/Meshcapade/gloss) which will be downloaded and compiled automatically when building this package. 
 
+## Data 
+To use smpl-rs you need to download the SMPL-X data. 
+
+* Download the models from [here](https://smpl-x.is.tue.mpg.de/download.php) (Download SMPL-X with removed headbun NPZ). 
+* After this change the paths in the `misc_scripts/standardize_smpl.py` file to the path where you downloaded the models and where you want to save the standardized models. You will need some additional files provided in the `data/smplx` folder. 
+* Then run as `python misc_scripts/standardize_smpl.py` to standardize the models. Lazy loading will need to be set to the path where you saved the standardized models. 
+
 ## Installation 
 ### Install and run native
 ```sh
