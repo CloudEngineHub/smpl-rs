@@ -3,11 +3,12 @@ use gloss_hecs::EntityBuilder;
 use gloss_renderer::components::Name;
 use log::info;
 use ndarray::s;
-use smpl_rs::{
+use smpl_core::{
     codec::scene::McsCodec,
     common::{
         animation::{AnimWrap, Animation, AnimationConfig, AnimationRunner},
         betas::Betas,
+        pose_override::PoseOverride,
         smpl_params::SmplParams,
     },
 };
@@ -46,6 +47,8 @@ impl McsCodecGloss for McsCodec {
                 anim.start_offset = start_offset;
                 builder.add(anim);
             }
+            let pose_override = PoseOverride::allow_all();
+            builder.add(pose_override);
             builder.add(GlossInterop { with_uv: true });
             builders.push(builder);
         }

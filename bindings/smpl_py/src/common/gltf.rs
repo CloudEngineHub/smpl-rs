@@ -4,9 +4,9 @@ use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
 use log::info;
 use pyo3::prelude::*;
+use smpl_core::codec::gltf::GltfCodec;
+use smpl_core::common::types::GltfOutputType;
 use smpl_gloss_integration::gltf::GltfCodecGloss;
-use smpl_rs::codec::gltf::GltfCodec;
-use smpl_rs::common::types::GltfOutputType;
 #[pyclass(name = "GltfCodec", module = "smpl_rs.codec", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PyGltfCodec {
@@ -26,7 +26,7 @@ impl PyGltfCodec {
         let scene_ptr = scene_ptr_idx as *mut Scene;
         let scene: &Scene = unsafe { &*scene_ptr };
         Self {
-            inner: GltfCodec::from_scene(scene, None, None),
+            inner: GltfCodec::from_scene(scene, None, true),
         }
     }
     #[pyo3(signature = (path, compatibility_mode = None))]

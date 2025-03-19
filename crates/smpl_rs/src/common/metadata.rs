@@ -1,7 +1,6 @@
 use super::{
     pose_hands::{HandPair, HandType},
-    pose_parts::PosePart,
-    types::SmplType,
+    pose_parts::PosePart, types::SmplType,
 };
 use crate::{
     smpl_h::{smpl_h, smpl_h_pose_parts},
@@ -40,7 +39,9 @@ pub fn smpl_metadata(smpl_type: &SmplType) -> SmplMetadata {
                 num_pose_blend_shapes: smpl_h::NUM_POSE_BLEND_SHAPES,
                 parts2jointranges: parts.parts2jointranges,
                 joint_parents: smpl_h::PARENT_ID_PER_JOINT.to_vec(),
-                joint_names: smpl_h::JOINT_NAMES.map(std::string::ToString::to_string).to_vec(),
+                joint_names: smpl_h::JOINT_NAMES
+                    .map(std::string::ToString::to_string)
+                    .to_vec(),
                 ..Default::default()
             }
         }
@@ -60,7 +61,9 @@ pub fn smpl_metadata(smpl_type: &SmplType) -> SmplMetadata {
                 hand_poses: SmplXHands::default().type2pose,
                 parts2jointranges: parts.parts2jointranges,
                 joint_parents: smpl_x::PARENT_ID_PER_JOINT.to_vec(),
-                joint_names: smpl_x::JOINT_NAMES.map(std::string::ToString::to_string).to_vec(),
+                joint_names: smpl_x::JOINT_NAMES
+                    .map(std::string::ToString::to_string)
+                    .to_vec(),
                 ..Default::default()
             }
         }

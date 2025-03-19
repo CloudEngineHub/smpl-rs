@@ -26,7 +26,8 @@ impl RetargetPoseYShift {
         if pose.non_retargeted_pose.is_none() {
             pose.non_retargeted_pose = Some(Box::new(pose.clone()));
         }
-        pose.global_trans[1] = pose.non_retargeted_pose.as_ref().unwrap().global_trans[1] + self.y_shift;
+        pose.global_trans[1] = pose.non_retargeted_pose.as_ref().unwrap().global_trans[1]
+            + self.y_shift;
         self.currently_applied_y_shift = self.y_shift;
         pose.retargeted = true;
     }

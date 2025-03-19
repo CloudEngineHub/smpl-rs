@@ -1,7 +1,4 @@
-use burn::{
-    prelude::Backend,
-    tensor::{Float, Tensor},
-};
+use burn::{prelude::Backend, tensor::{Float, Tensor}};
 use ndarray as nd;
 /// Component for Pose corrective vertex offsets
 pub struct PoseCorrective {

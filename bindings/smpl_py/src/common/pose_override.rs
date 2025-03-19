@@ -3,7 +3,7 @@ use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
 use pyo3::prelude::*;
-use smpl_rs::common::{pose_hands::HandType, pose_override::PoseOverride};
+use smpl_core::common::{pose_hands::HandType, pose_override::PoseOverride};
 #[pyclass(name = "PoseOverride", module = "smpl_rs.components", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PyPoseOverride {

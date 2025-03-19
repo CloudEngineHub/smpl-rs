@@ -3,9 +3,9 @@ use gloss_renderer::{
     viewer::Viewer,
 };
 use gloss_renderer::{config::LogLevel, gloss_setup_logger};
+use smpl_core::codec::codec::SmplCodec;
+use smpl_core::common::smpl_model::SmplCacheDynamic;
 use smpl_gloss_integration::{codec::SmplCodecGloss, components::GlossInterop, plugin::SmplPlugin};
-use smpl_rs::codec::codec::SmplCodec;
-use smpl_rs::common::smpl_model::SmplCacheDynamic;
 use std::path::Path;
 fn main() {
     gloss_setup_logger(LogLevel::Info, None);

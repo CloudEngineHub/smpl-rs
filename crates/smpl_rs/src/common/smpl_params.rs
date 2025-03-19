@@ -18,7 +18,11 @@ impl Default for SmplParams {
     }
 }
 impl SmplParams {
-    pub fn new(smpl_type: SmplType, gender: Gender, enable_pose_corrective: bool) -> Self {
+    pub fn new(
+        smpl_type: SmplType,
+        gender: Gender,
+        enable_pose_corrective: bool,
+    ) -> Self {
         Self {
             smpl_type,
             gender,

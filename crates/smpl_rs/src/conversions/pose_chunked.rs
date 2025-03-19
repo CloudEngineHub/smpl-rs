@@ -1,8 +1,5 @@
 use crate::common::{
-    metadata::SmplMetadata,
-    pose::Pose,
-    pose_parts::PosePart,
-    types::{SmplType, UpAxis},
+    metadata::SmplMetadata, pose::Pose, pose_parts::PosePart, types::{SmplType, UpAxis},
 };
 use ndarray as nd;
 use ndarray::prelude::*;
@@ -59,26 +56,35 @@ impl PoseChunked {
         let joint_poses = &pose.joint_poses;
         let max_range = 0..joint_poses.dim().0;
         let clamp_closure = |lhs: &Range<usize>, rhs: &Range<usize>| -> Range<usize> {
-            if lhs.end > rhs.end {
-                0..0
-            } else {
-                lhs.clone()
-            }
+            if lhs.end > rhs.end { 0..0 } else { lhs.clone() }
         };
-        let global_orient_clamped = clamp_closure(&p2r[PosePart::RootRotation], &max_range);
-        let mut global_orient = Some(joint_poses.slice(s![global_orient_clamped, ..]).to_owned());
+        let global_orient_clamped = clamp_closure(
+            &p2r[PosePart::RootRotation],
+            &max_range,
+        );
+        let mut global_orient = Some(
+            joint_poses.slice(s![global_orient_clamped, ..]).to_owned(),
+        );
         let body_clamped = clamp_closure(&p2r[PosePart::Body], &max_range);
         let mut body_pose = Some(joint_poses.slice(s![body_clamped, ..]).to_owned());
         let left_hand_clamped = clamp_closure(&p2r[PosePart::LeftHand], &max_range);
-        let mut left_hand_pose = Some(joint_poses.slice(s![left_hand_clamped, ..]).to_owned());
+        let mut left_hand_pose = Some(
+            joint_poses.slice(s![left_hand_clamped, ..]).to_owned(),
+        );
         let right_hand_clamped = clamp_closure(&p2r[PosePart::RightHand], &max_range);
-        let mut right_hand_pose = Some(joint_poses.slice(s![right_hand_clamped, ..]).to_owned());
+        let mut right_hand_pose = Some(
+            joint_poses.slice(s![right_hand_clamped, ..]).to_owned(),
+        );
         let jaw_clamped = clamp_closure(&p2r[PosePart::Jaw], &max_range);
         let mut jaw_pose = Some(joint_poses.slice(s![jaw_clamped, ..]).to_owned());
         let left_eye_clamped = clamp_closure(&p2r[PosePart::LeftEye], &max_range);
-        let mut left_eye_pose = Some(joint_poses.slice(s![left_eye_clamped, ..]).to_owned());
+        let mut left_eye_pose = Some(
+            joint_poses.slice(s![left_eye_clamped, ..]).to_owned(),
+        );
         let right_eye_clamped = clamp_closure(&p2r[PosePart::RightEye], &max_range);
-        let mut right_eye_pose = Some(joint_poses.slice(s![right_eye_clamped, ..]).to_owned());
+        let mut right_eye_pose = Some(
+            joint_poses.slice(s![right_eye_clamped, ..]).to_owned(),
+        );
         if global_orient.as_ref().unwrap().dim().0 == 0 {
             global_orient = None;
         }
@@ -126,7 +132,9 @@ impl PoseChunked {
         let zeros = nd::Array2::<f32>::zeros((1, 3));
         pose.global_trans = self.global_trans.to_shape(3).unwrap().to_owned();
         pose.joint_poses
-            .slice_mut(s![metadata.parts2jointranges[PosePart::RootRotation].clone(), ..])
+            .slice_mut(
+                s![metadata.parts2jointranges[PosePart::RootRotation].clone(), ..],
+            )
             .assign(self.global_orient.as_ref().unwrap_or(&zeros));
         pose.joint_poses
             .slice_mut(s![metadata.parts2jointranges[PosePart::Body].clone(), ..])

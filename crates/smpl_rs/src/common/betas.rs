@@ -28,7 +28,10 @@ impl Betas {
     /// # Panics
     /// Will panic if the file cannot be read
     #[allow(clippy::cast_possible_truncation)]
-    fn new_from_npz_reader<R: Read + Seek>(npz: &mut NpzReader<R>, truncate_nr_betas: Option<usize>) -> Self {
+    fn new_from_npz_reader<R: Read + Seek>(
+        npz: &mut NpzReader<R>,
+        truncate_nr_betas: Option<usize>,
+    ) -> Self {
         info!("NPZ keys - {:?}", npz.names().unwrap());
         let betas: nd::Array1<f64> = npz.by_name("betas").unwrap();
         let mut betas = betas.mapv(|x| x as f32);
@@ -50,7 +53,10 @@ impl Betas {
     /// # Panics
     /// Will panic if the file cannot be read
     #[allow(clippy::cast_possible_truncation)]
-    pub async fn new_from_npz_async(npz_path: &str, truncate_nr_betas: Option<usize>) -> Self {
+    pub async fn new_from_npz_async(
+        npz_path: &str,
+        truncate_nr_betas: Option<usize>,
+    ) -> Self {
         let reader = FileLoader::open(npz_path).await;
         let mut npz = NpzReader::new(reader).unwrap();
         Self::new_from_npz_reader(&mut npz, truncate_nr_betas)

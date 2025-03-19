@@ -11,7 +11,8 @@ impl PosePartRanges {
         let mut cur_joints_added = 0;
         parts2jointranges[PosePart::RootRotation] = 0..1;
         cur_joints_added += 1;
-        parts2jointranges[PosePart::Body] = cur_joints_added..cur_joints_added + smpl_x::NUM_BODY_JOINTS;
+        parts2jointranges[PosePart::Body] = cur_joints_added..cur_joints_added
+            + smpl_x::NUM_BODY_JOINTS;
         cur_joints_added += smpl_x::NUM_BODY_JOINTS;
         parts2jointranges[PosePart::Jaw] = cur_joints_added..cur_joints_added + 1;
         cur_joints_added += 1;
@@ -19,9 +20,11 @@ impl PosePartRanges {
         cur_joints_added += 1;
         parts2jointranges[PosePart::RightEye] = cur_joints_added..cur_joints_added + 1;
         cur_joints_added += 1;
-        parts2jointranges[PosePart::LeftHand] = cur_joints_added..cur_joints_added + smpl_x::NUM_HAND_JOINTS;
+        parts2jointranges[PosePart::LeftHand] = cur_joints_added..cur_joints_added
+            + smpl_x::NUM_HAND_JOINTS;
         cur_joints_added += smpl_x::NUM_HAND_JOINTS;
-        parts2jointranges[PosePart::RightHand] = cur_joints_added..cur_joints_added + smpl_x::NUM_HAND_JOINTS;
+        parts2jointranges[PosePart::RightHand] = cur_joints_added..cur_joints_added
+            + smpl_x::NUM_HAND_JOINTS;
         Self { parts2jointranges }
     }
 }

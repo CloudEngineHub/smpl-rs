@@ -1,7 +1,7 @@
 use burn::prelude::Backend;
 use gloss_renderer::geom::{Geom, PerVertexNormalsWeightingType};
-use smpl_rs::common::outputs::SmplOutputDynamic;
-use utils_rs::bshare::{ToBurn, ToNalgebraFloat, ToNalgebraInt};
+use gloss_utils::bshare::{ToBurn, ToNalgebraFloat, ToNalgebraInt};
+use smpl_core::common::outputs::SmplOutputDynamic;
 /// Add some gloss specific functions
 pub trait SmplOutputGloss {
     fn compute_normals(&mut self);

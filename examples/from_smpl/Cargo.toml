@@ -1,12 +1,12 @@
 [package]
 name = "from_smpl"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.69"
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 
 [dependencies]
-smpl-rs = { path = "../../crates/smpl_rs", default-features = false  }
+smpl-core = { path = "../../crates/smpl_core", default-features = false  }
 smpl-gloss-integration = { path = "../../crates/smpl_gloss_integration", default-features = false  }
 smpl-utils = { path = "../../crates/smpl_utils", default-features = false  }
 gloss-renderer = {workspace= true, default-features = false}
@@ -26,3 +26,4 @@ futures="0.3"
 ndarray.workspace=true
 burn.workspace=true
 wgpu.workspace=true
+zerofrom="=0.1.5"

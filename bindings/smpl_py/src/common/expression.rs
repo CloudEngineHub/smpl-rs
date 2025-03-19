@@ -5,7 +5,7 @@ use ndarray as nd;
 use numpy::PyArrayMethods;
 use numpy::{PyArray1, PyReadonlyArray1, ToPyArray};
 use pyo3::prelude::*;
-use smpl_rs::common::expression::Expression;
+use smpl_core::common::expression::Expression;
 #[pyclass(name = "Expression", module = "smpl_rs.components", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PyExpression {

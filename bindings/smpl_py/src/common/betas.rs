@@ -5,7 +5,7 @@ use ndarray as nd;
 use numpy::PyArrayMethods;
 use numpy::{PyArray1, PyReadonlyArray1, ToPyArray};
 use pyo3::prelude::*;
-use smpl_rs::common::betas::Betas;
+use smpl_core::common::betas::Betas;
 #[pyclass(name = "Betas", module = "smpl_rs.components", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PyBetas {

@@ -6,17 +6,21 @@ use gloss_renderer::{
     components::{DiffuseImg, MetalnessImg, Name, NormalImg, RoughnessImg},
     scene::Scene,
 };
+use gloss_utils::{
+    bshare::{ToNalgebraFloat, ToNalgebraInt, ToNdArray},
+    nshare::ToNalgebra,
+};
 use image::imageops::FilterType;
 use log::info;
 use nalgebra::DMatrix;
 use ndarray::{self as nd, s};
-use smpl_rs::common::types::SmplType;
-use smpl_rs::{
+use smpl_core::common::types::SmplType;
+use smpl_core::{
     codec::gltf::GltfCodec,
     common::{metadata::smpl_metadata, pose::Pose, smpl_model::SmplCache, smpl_params::SmplParams},
     conversions::pose_remap::PoseRemap,
 };
-use smpl_rs::{
+use smpl_core::{
     codec::{gltf::PerBodyData, scene::CameraTrack},
     common::{
         animation::Animation, betas::Betas, expression::Expression, pose_override::PoseOverride, pose_retarget::RetargetPoseYShift,
@@ -25,13 +29,10 @@ use smpl_rs::{
 };
 use smpl_utils::array::{Gather2D, Gather3D};
 use std::f32::consts::PI;
-use utils_rs::{
-    bshare::{ToNalgebraFloat, ToNalgebraInt, ToNdArray},
-    nshare::ToNalgebra,
-};
 /// Creates a ``GltfCodec`` from an entity by extracting components from it
 pub trait GltfCodecGloss {
-    fn from_scene(scene: &Scene, max_texture_size: Option<u32>, ignore_ent: Option<String>) -> GltfCodec;
+    fn from_scene(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool) -> GltfCodec;
+    fn from_entities(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool, entities: Vec<String>) -> GltfCodec;
 }
 fn get_image(image: &DynImage, to_gray: bool, max_texture_size: Option<u32>) -> DynImage {
     let mut image = image.clone();
@@ -51,12 +52,21 @@ fn get_image(image: &DynImage, to_gray: bool, max_texture_size: Option<u32>) -> 
 /// Trait implementation for ``GltfCodec``
 impl GltfCodecGloss for GltfCodec {
     /// Get a ``GltfCodec`` from the scene
-    fn from_scene(scene: &Scene, max_texture_size: Option<u32>, ignore_ent: Option<String>) -> GltfCodec {
+    fn from_scene(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool) -> GltfCodec {
         let smpl_models = scene.get_resource::<&SmplCacheDynamic>().unwrap();
         match &*smpl_models {
-            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, &ignore_ent),
-            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, &ignore_ent),
-            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, &ignore_ent),
+            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, &None, export_camera),
+            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, &None, export_camera),
+            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, &None, export_camera),
+        }
+    }
+    /// Get a ``GltfCodec`` from the scene
+    fn from_entities(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool, entities: Vec<String>) -> GltfCodec {
+        let smpl_models = scene.get_resource::<&SmplCacheDynamic>().unwrap();
+        match &*smpl_models {
+            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, &Some(entities), export_camera),
+            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, &Some(entities), export_camera),
+            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, &Some(entities), export_camera),
         }
     }
 }
@@ -68,7 +78,8 @@ fn from_scene_on_backend<B: Backend>(
     scene: &Scene,
     smpl_models: &SmplCache<B>,
     max_texture_size: Option<u32>,
-    ignore_ent: &Option<String>,
+    entities: &Option<Vec<String>>,
+    export_camera: bool,
 ) -> GltfCodec
 where
     <B as Backend>::FloatTensorPrimitive<2>: Sync,
@@ -82,9 +93,11 @@ where
     let scene_anim = scene.get_resource::<&SceneAnimation>().unwrap();
     let nr_frames = scene_anim.num_frames;
     let fps = scene_anim.config.fps;
-    let mut cameras_query = scene.world.query::<&CameraTrack>();
-    for (_, camera_track) in cameras_query.iter() {
-        gltf_codec.camera_track = Some(camera_track.clone());
+    if export_camera {
+        let mut cameras_query = scene.world.query::<&CameraTrack>();
+        for (_, camera_track) in cameras_query.iter() {
+            gltf_codec.camera_track = Some(camera_track.clone());
+        }
     }
     let mut query = scene.world.query::<(&SmplParams, &Name)>();
     let num_bodies = query.iter().len();
@@ -105,8 +118,8 @@ where
         }
     }
     for (body_idx, (entity, (smpl_params, name))) in query.iter().enumerate() {
-        if let Some(ent_to_ignore) = ignore_ent {
-            if *ent_to_ignore == name.0 {
+        if let Some(entities) = entities {
+            if !entities.contains(&name.0) {
                 continue;
             }
         }

@@ -1,16 +1,11 @@
 use super::{
-    betas::Betas,
-    expression::Expression,
-    outputs::SmplOutputDynamic,
-    pose::Pose,
-    smpl_options::SmplOptions,
-    types::{Gender, SmplType},
+    betas::Betas, expression::Expression, outputs::SmplOutputDynamic, pose::Pose,
+    smpl_options::SmplOptions, types::{Gender, SmplType},
 };
 use crate::smpl_x::smpl_x_gpu::SmplXDynamic;
 use burn::{
     backend::{Candle, NdArray, Wgpu},
-    prelude::Backend,
-    tensor::{Float, Int, Tensor},
+    prelude::Backend, tensor::{Float, Int, Tensor},
 };
 use dyn_clone::DynClone;
 use enum_map::EnumMap;
@@ -22,8 +17,17 @@ use utils_rs::tensor::BurnBackend;
 pub trait SmplModel<B: Backend>: Send + Sync + 'static + Any + DynClone {
     fn smpl_type(&self) -> SmplType;
     fn gender(&self) -> Gender;
-    fn forward(&self, options: &SmplOptions, betas: &Betas, pose_raw: &Pose, expression: Option<&Expression>) -> SmplOutputDynamic<B>;
-    fn create_body_with_uv(&self, smpl_output: &SmplOutputDynamic<B>) -> SmplOutputDynamic<B>;
+    fn forward(
+        &self,
+        options: &SmplOptions,
+        betas: &Betas,
+        pose_raw: &Pose,
+        expression: Option<&Expression>,
+    ) -> SmplOutputDynamic<B>;
+    fn create_body_with_uv(
+        &self,
+        smpl_output: &SmplOutputDynamic<B>,
+    ) -> SmplOutputDynamic<B>;
     fn expression2offsets(&self, expression: &Expression) -> Tensor<B, 2, Float>;
     fn betas2verts(&self, betas: &Betas) -> Tensor<B, 2, Float>;
     fn verts2joints(&self, verts_t_pose: Tensor<B, 2, Float>) -> Tensor<B, 2, Float>;
@@ -113,36 +117,73 @@ impl SmplCacheDynamic {
     }
     pub fn has_lazy_loading(&self, smpl_type: SmplType, gender: Gender) -> bool {
         match self {
-            SmplCacheDynamic::NdArray(models) => models.has_lazy_loading(smpl_type, gender),
+            SmplCacheDynamic::NdArray(models) => {
+                models.has_lazy_loading(smpl_type, gender)
+            }
             SmplCacheDynamic::Wgpu(models) => models.has_lazy_loading(smpl_type, gender),
-            SmplCacheDynamic::Candle(models) => models.has_lazy_loading(smpl_type, gender),
+            SmplCacheDynamic::Candle(models) => {
+                models.has_lazy_loading(smpl_type, gender)
+            }
         }
     }
-    pub fn get_lazy_loading(&self, smpl_type: SmplType, gender: Gender) -> Option<String> {
+    pub fn get_lazy_loading(
+        &self,
+        smpl_type: SmplType,
+        gender: Gender,
+    ) -> Option<String> {
         match self {
-            SmplCacheDynamic::NdArray(models) => models.get_lazy_loading(smpl_type, gender),
+            SmplCacheDynamic::NdArray(models) => {
+                models.get_lazy_loading(smpl_type, gender)
+            }
             SmplCacheDynamic::Wgpu(models) => models.get_lazy_loading(smpl_type, gender),
-            SmplCacheDynamic::Candle(models) => models.get_lazy_loading(smpl_type, gender),
+            SmplCacheDynamic::Candle(models) => {
+                models.get_lazy_loading(smpl_type, gender)
+            }
         }
     }
     /// Set lazy loading using default paths
     pub fn lazy_load_defaults(&mut self) {
-        self.set_lazy_loading(SmplType::SmplX, Gender::Neutral, "./data/smplx/SMPLX_neutral_array_f32_slim.npz");
-        self.set_lazy_loading(SmplType::SmplX, Gender::Male, "./data/smplx/SMPLX_male_array_f32_slim.npz");
-        self.set_lazy_loading(SmplType::SmplX, Gender::Female, "./data/smplx/SMPLX_female_array_f32_slim.npz");
+        self.set_lazy_loading(
+            SmplType::SmplX,
+            Gender::Neutral,
+            "./data/smplx/SMPLX_neutral_array_f32_slim.npz",
+        );
+        self.set_lazy_loading(
+            SmplType::SmplX,
+            Gender::Male,
+            "./data/smplx/SMPLX_male_array_f32_slim.npz",
+        );
+        self.set_lazy_loading(
+            SmplType::SmplX,
+            Gender::Female,
+            "./data/smplx/SMPLX_female_array_f32_slim.npz",
+        );
     }
     /// Set lazy loading explicitly
     pub fn set_lazy_loading(&mut self, smpl_type: SmplType, gender: Gender, path: &str) {
         match self {
-            SmplCacheDynamic::NdArray(models) => models.set_lazy_loading(smpl_type, gender, path),
-            SmplCacheDynamic::Wgpu(models) => models.set_lazy_loading(smpl_type, gender, path),
-            SmplCacheDynamic::Candle(models) => models.set_lazy_loading(smpl_type, gender, path),
+            SmplCacheDynamic::NdArray(models) => {
+                models.set_lazy_loading(smpl_type, gender, path)
+            }
+            SmplCacheDynamic::Wgpu(models) => {
+                models.set_lazy_loading(smpl_type, gender, path)
+            }
+            SmplCacheDynamic::Candle(models) => {
+                models.set_lazy_loading(smpl_type, gender, path)
+            }
         }
     }
     /// Add a Smpl Model created on a certain Burn Backend
-    pub fn add_model_from_dynamic_device(&mut self, model: SmplXDynamic, cache_models: bool) {
+    pub fn add_model_from_dynamic_device(
+        &mut self,
+        model: SmplXDynamic,
+        cache_models: bool,
+    ) {
         match (self, model) {
-            (SmplCacheDynamic::NdArray(models), SmplXDynamic::NdArray(model_ndarray)) => {
+            (
+                SmplCacheDynamic::NdArray(models),
+                SmplXDynamic::NdArray(model_ndarray),
+            ) => {
                 models.add_model(model_ndarray, cache_models);
             }
             (SmplCacheDynamic::Wgpu(models), SmplXDynamic::Wgpu(model_wgpu)) => {
@@ -156,12 +197,24 @@ impl SmplCacheDynamic {
             }
         }
     }
-
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn add_model_from_type(&mut self, smpl_type: SmplType, path: &str, gender: Gender, max_num_betas: usize, num_expression_components: usize) {
+    pub fn add_model_from_type(
+        &mut self,
+        smpl_type: SmplType,
+        path: &str,
+        gender: Gender,
+        max_num_betas: usize,
+        num_expression_components: usize,
+    ) {
         match smpl_type {
             SmplType::SmplX => {
-                let new_model = SmplXDynamic::new_from_npz(self, path, gender, max_num_betas, num_expression_components);
+                let new_model = SmplXDynamic::new_from_npz(
+                    self,
+                    path,
+                    gender,
+                    max_num_betas,
+                    num_expression_components,
+                );
                 self.add_model_from_dynamic_device(new_model, true);
             }
             _ => panic!("Model loading for {smpl_type:?} if not supported yet!"),
@@ -188,17 +241,29 @@ impl<B: Backend> SmplCache<B> {
         self.type_to_model = EnumMap::default();
     }
     #[allow(clippy::borrowed_box)]
-    pub fn get_model_box_ref(&self, smpl_type: SmplType, gender: Gender) -> Option<&Box<dyn SmplModel<B>>> {
+    pub fn get_model_box_ref(
+        &self,
+        smpl_type: SmplType,
+        gender: Gender,
+    ) -> Option<&Box<dyn SmplModel<B>>> {
         self.type_to_model[smpl_type].gender_to_model[gender].as_ref()
     }
     #[allow(clippy::redundant_closure_for_method_calls)]
-    pub fn get_model_ref(&self, smpl_type: SmplType, gender: Gender) -> Option<&dyn SmplModel<B>> {
+    pub fn get_model_ref(
+        &self,
+        smpl_type: SmplType,
+        gender: Gender,
+    ) -> Option<&dyn SmplModel<B>> {
         let opt = &self.type_to_model[smpl_type].gender_to_model[gender];
         let model = opt.as_ref().map(|x| x.as_ref());
         model
     }
     #[allow(clippy::redundant_closure_for_method_calls)]
-    pub fn get_model_mut(&mut self, smpl_type: SmplType, gender: Gender) -> Option<&mut dyn SmplModel<B>> {
+    pub fn get_model_mut(
+        &mut self,
+        smpl_type: SmplType,
+        gender: Gender,
+    ) -> Option<&mut dyn SmplModel<B>> {
         let opt = &mut self.type_to_model[smpl_type].gender_to_model[gender];
         let model = opt.as_mut().map(|x| x.as_mut());
         model
@@ -209,13 +274,17 @@ impl<B: Backend> SmplCache<B> {
     pub fn has_lazy_loading(&self, smpl_type: SmplType, gender: Gender) -> bool {
         self.type_to_path[smpl_type].gender_to_path[gender].is_some()
     }
-    pub fn get_lazy_loading(&self, smpl_type: SmplType, gender: Gender) -> Option<String> {
+    pub fn get_lazy_loading(
+        &self,
+        smpl_type: SmplType,
+        gender: Gender,
+    ) -> Option<String> {
         self.type_to_path[smpl_type].gender_to_path[gender].clone()
     }
     pub fn set_lazy_loading(&mut self, smpl_type: SmplType, gender: Gender, path: &str) {
         self.type_to_path[smpl_type].gender_to_path[gender] = Some(path.to_string());
         assert!(
-            std::path::Path::new(&path).exists(),
+            std::path::Path::new(& path).exists(),
             "File at path {path} does not exist. Please follow the data download instructions in the README."
         );
     }

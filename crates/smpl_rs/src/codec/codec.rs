@@ -4,9 +4,7 @@ use ndarray as nd;
 use ndarray_npy::{NpzReader, NpzWriter};
 use num_traits::FromPrimitive;
 use std::{
-    ffi::OsStr,
-    fs::File,
-    io::{Cursor, Read, Seek, Write},
+    ffi::OsStr, fs::File, io::{Cursor, Read, Seek, Write},
     path::Path,
 };
 /// The ``SmplCodec`` contains all of the contents of a ``.smpl`` file
@@ -70,7 +68,10 @@ impl SmplCodec {
     /// # Panics
     /// Will panic if it can't write the npz
     pub fn write_to_npz<W: Write + Seek>(&self, npz: &mut NpzWriter<W>) {
-        npz.add_array("smplVersion", &nd::Array0::<i32>::from_elem((), self.smpl_version))
+        npz.add_array(
+                "smplVersion",
+                &nd::Array0::<i32>::from_elem((), self.smpl_version),
+            )
             .unwrap();
         npz.add_array("gender", &nd::Array0::<i32>::from_elem((), self.gender)).unwrap();
         if let Some(shape_params) = &self.shape_parameters {
@@ -79,9 +80,11 @@ impl SmplCodec {
         if let Some(expression_parameters) = &self.expression_parameters {
             npz.add_array("expressionParameters", expression_parameters).unwrap();
         }
-        npz.add_array("frameCount", &nd::Array0::<i32>::from_elem((), self.frame_count)).unwrap();
+        npz.add_array("frameCount", &nd::Array0::<i32>::from_elem((), self.frame_count))
+            .unwrap();
         if let Some(frame_rate) = self.frame_rate {
-            npz.add_array("frameRate", &nd::Array0::<f32>::from_elem((), frame_rate)).unwrap();
+            npz.add_array("frameRate", &nd::Array0::<f32>::from_elem((), frame_rate))
+                .unwrap();
         }
         if let Some(body_translation) = &self.body_translation {
             npz.add_array("bodyTranslation", body_translation).unwrap();
@@ -100,15 +103,27 @@ impl SmplCodec {
         }
     }
     fn from_npz_reader<R: Read + Seek>(npz: &mut NpzReader<R>) -> Self {
-        let smpl_version_arr: nd::Array0<i32> = npz.by_name("smplVersion").expect("smplVersion.npy should exist and be a int32");
+        let smpl_version_arr: nd::Array0<i32> = npz
+            .by_name("smplVersion")
+            .expect("smplVersion.npy should exist and be a int32");
         let smpl_version = smpl_version_arr.into_scalar();
-        let gender_arr: nd::Array0<i32> = npz.by_name("gender").expect("gender.npy should exist and be a int32");
+        let gender_arr: nd::Array0<i32> = npz
+            .by_name("gender")
+            .expect("gender.npy should exist and be a int32");
         let gender = gender_arr.into_scalar();
-        let shape_parameters: Option<nd::Array1<f32>> = npz.by_name("shapeParameters").ok();
-        let expression_parameters: Option<nd::Array2<f32>> = npz.by_name("expressionParameters").ok();
-        let frame_count_arr: nd::Array0<i32> = npz.by_name("frameCount").expect("frameCount.npy should exist and be a int32");
+        let shape_parameters: Option<nd::Array1<f32>> = npz
+            .by_name("shapeParameters")
+            .ok();
+        let expression_parameters: Option<nd::Array2<f32>> = npz
+            .by_name("expressionParameters")
+            .ok();
+        let frame_count_arr: nd::Array0<i32> = npz
+            .by_name("frameCount")
+            .expect("frameCount.npy should exist and be a int32");
         let frame_count = frame_count_arr.into_scalar();
-        let body_translation: Option<nd::Array2<f32>> = npz.by_name("bodyTranslation").ok();
+        let body_translation: Option<nd::Array2<f32>> = npz
+            .by_name("bodyTranslation")
+            .ok();
         let (head_pose, left_hand_pose, right_hand_pose) = if smpl_version == 4 {
             (None, None, None)
         } else {
@@ -119,14 +134,18 @@ impl SmplCodec {
             )
         };
         let body_pose: Option<nd::Array3<f32>> = if smpl_version == 4 {
-            npz.by_name("bodyPose").ok().map(|arr2: nd::Array2<f32>| arr2.insert_axis(nd::Axis(2)))
+            npz.by_name("bodyPose")
+                .ok()
+                .map(|arr2: nd::Array2<f32>| arr2.insert_axis(nd::Axis(2)))
         } else {
             npz.by_name("bodyPose").ok()
         };
         let frame_rate = if frame_count > 1 {
             let fps_arr: nd::Array0<f32> = npz
                 .by_name("frameRate")
-                .expect("frameRate.npy should exist and be a f32. It's required because frameCount >1");
+                .expect(
+                    "frameRate.npy should exist and be a f32. It's required because frameCount >1",
+                );
             Some(fps_arr.into_scalar())
         } else {
             None
@@ -148,7 +167,11 @@ impl SmplCodec {
     /// # Panics
     /// Will panic if it can't open the file
     pub fn from_file(path: &str) -> Self {
-        let mut npz = NpzReader::new(std::fs::File::open(path).unwrap_or_else(|_| panic!("Could not find/open file: {path}"))).unwrap();
+        let mut npz = NpzReader::new(
+                std::fs::File::open(path)
+                    .unwrap_or_else(|_| panic!("Could not find/open file: {path}")),
+            )
+            .unwrap();
         Self::from_npz_reader(&mut npz)
     }
     /// # Panics

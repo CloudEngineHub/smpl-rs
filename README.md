@@ -1,8 +1,16 @@
-# Smpl-rs
+<div align="center">
 
-Smpl-rs is the suite of SMPL functionality implemented in Rust over [gloss](https://github.com/Meshcapade/gloss). It contains code for creating smpl-bodies, rendering and modifying them.
+# 🚶‍♂️ SMPL-rs
 
-![SMPL Banner](imgs/banner.png)
+**Smpl-rs is the suite of SMPL functionality implemented in Rust over [gloss](https://github.com/Meshcapade/gloss). It contains code for creating smpl-bodies, rendering and modifying them**
+
+[![Crates.io](https://img.shields.io/crates/v/smpl-rs.svg)](https://crates.io/crates/smpl-rs)
+[![PyPI](https://img.shields.io/pypi/v/smpl-rs.svg)](https://pypi.org/project/smpl-rs/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/Meshcapade/smpl-rs/LICENSE)
+
+<img alt="SMPL-rs Banner" src="https://raw.githubusercontent.com/Meshcapade/smpl-rs/main/imgs/banner.png">
+
+</div>
 
 ## Features 
 - Run forward passes through the SMPL model (betas->mesh)
@@ -10,7 +18,7 @@ Smpl-rs is the suite of SMPL functionality implemented in Rust over [gloss](http
 - Interfaces with [gloss](https://github.com/Meshcapade/gloss) for rendering meshes both in native and web
 <div align="center">
 <p align="middle">
-  <img src="imgs/smpl.png" width="700"/>
+  <img src="https://raw.githubusercontent.com/Meshcapade/smpl-rs/main/imgs/smpl.png" width="700"/>
 </p>
 </div>
 

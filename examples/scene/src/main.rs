@@ -1,16 +1,16 @@
 use gloss_renderer::viewer::Viewer;
 use gloss_renderer::{config::LogLevel, gloss_setup_logger};
+use smpl_core::codec::scene::McsCodec;
+use smpl_core::common::animation::{AnimWrap, AnimationConfig};
+use smpl_core::common::{
+    betas::Betas,
+    smpl_model::SmplCacheDynamic,
+    types::{Gender, SmplType},
+};
 use smpl_gloss_integration::{
     components::GlossInterop,
     plugin::SmplPlugin,
     scene::{McsCodecGloss, SceneAnimation},
-};
-use smpl_rs::codec::scene::McsCodec;
-use smpl_rs::common::animation::{AnimWrap, AnimationConfig};
-use smpl_rs::common::{
-    betas::Betas,
-    smpl_model::SmplCacheDynamic,
-    types::{Gender, SmplType},
 };
 use std::path::Path;
 fn main() {

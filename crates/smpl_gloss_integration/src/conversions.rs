@@ -4,8 +4,8 @@ use gloss_renderer::{
     components::{Faces, ModelMatrix, Normals, Tangents, UVs, Verts, VisMesh, VisPoints},
     scene::Scene,
 };
-use smpl_rs::common::smpl_model::SmplModel;
-use utils_rs::tensor::{DynamicTensorFloat2D, DynamicTensorInt2D};
+use gloss_utils::tensor::{DynamicTensorFloat2D, DynamicTensorInt2D};
+use smpl_core::common::smpl_model::SmplModel;
 /// Insert vertices and vertex attributes for the entity based on changes made
 /// to it, on a generic Burn Backend. We currently support - ``Candle``,
 /// ``NdArray``, and ``Wgpu``

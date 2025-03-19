@@ -8,23 +8,26 @@ members = [
 
 # =====================================================================
 [workspace.package]
-authors = ["Radu Alexandru Rosu", "Aman Shenoy"]
+authors = ["Radu Alexandru Rosu <alex@meshcapade.com>", "Aman Shenoy <aman@meshcapade.com>"]
 edition = "2021"
-rust-version = "1.69"
-version = "0.5.0"
-
+rust-version = "1.79"
+version = "0.5.4"
+description = "A suite of SMPL functionality written over gloss"
+license = "MIT"
+repository = "https://github.com/Meshcapade/smpl-rs"
+readme = "README.md"
 # =====================================================================
 [workspace.dependencies]
 # my crates
-smpl-rs = { path = "crates/smpl_rs", version = "=0.5.0", default-features = false }
-smpl-gloss-integration = { path = "crates/smpl_gloss_integration", version = "=0.5.0", default-features = false }
-smpl-utils = { path = "crates/smpl_utils", version = "=0.5.0", default-features = false }
+smpl-core = { path = "crates/smpl_core", version = "0.5", default-features = false }
+smpl-gloss-integration = { path = "crates/smpl_gloss_integration", version = "0.5", default-features = false }
+smpl-utils = { path = "crates/smpl_utils", version = "0.5", default-features = false }
 
-gloss-renderer = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-utils-rs = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-img = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
 gloss_py_macros = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-hecs = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-renderer = {version = "0.5", default-features = false}
+gloss-utils = {version = "0.5", default-features = false}
+gloss-img = {version = "0.5", default-features = false}
+gloss-hecs = {version = "0.5", default-features = false}
 
 # =====================================================================
 # Third-party crates
@@ -61,7 +64,9 @@ burn = { version = "0.14", default-features = false, features=["ndarray", "wgpu"
 wgpu       = { version = "22.1.0",  default-features = false, features = ["wgsl", "spirv", "webgl", "metal"] } 
 bytemuck = { version = "1.12", features = [ "derive" ] }
 futures = "0.3"
-wasm-bindgen="=0.2.96"
+wasm-bindgen="=0.2.100"
+litemap = "=0.7.4"
+native-tls = "=0.2.13"
 
 # =====================================================================
 [profile.dev]

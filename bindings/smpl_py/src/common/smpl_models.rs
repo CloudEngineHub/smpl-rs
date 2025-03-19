@@ -4,8 +4,8 @@ use burn::backend::Candle;
 use gloss_hecs::Entity;
 use gloss_renderer::scene::Scene;
 use pyo3::prelude::*;
-use smpl_rs::smpl_x::smpl_x_gpu::SmplXDynamic;
-use smpl_rs::{
+use smpl_core::smpl_x::smpl_x_gpu::SmplXDynamic;
+use smpl_core::{
     common::smpl_model::{SmplCache, SmplCacheDynamic},
     smpl_x::smpl_x_gpu::SmplXGPU,
 };

@@ -3,7 +3,7 @@ use gloss_renderer::scene::Scene;
 use log::info;
 use nd::concatenate;
 use ndarray as nd;
-use smpl_rs::{
+use smpl_core::{
     codec::codec::SmplCodec,
     common::{
         animation::{AnimWrap, Animation},

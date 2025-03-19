@@ -1,33 +1,29 @@
 [package]
 name = "smpl-utils"
 authors.workspace = true
-description = "Small library for utility function related to smpl"
+description = "Small library for utility functions related to smpl-rs"
 edition.workspace = true
-publish = false
+publish = true
+readme = "README.md"
 rust-version.workspace = true
 version.workspace = true
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/smpl-utils"
 
 [dependencies]
-#local to package
 strum = "0.25"
 strum_macros = "0.25"
-
-#workspace internal gloss
-
-#workspace third-party
 ndarray.workspace=true
 num-traits.workspace=true
 nalgebra.workspace=true
 bytemuck.workspace=true
-utils-rs.workspace=true
+gloss-utils.workspace=true
 
-#more dependancies for wasm https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#added-support-for-the-web
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
 console_log = "1.0"
-wasm-bindgen = "0.2"
+wasm-bindgen.workspace=true
 wasm-bindgen-futures = "0.4.30"
 web-sys = { version = "0.3", features = [
     "Request",

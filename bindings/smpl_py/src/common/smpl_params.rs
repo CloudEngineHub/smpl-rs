@@ -3,7 +3,7 @@ use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
 use pyo3::prelude::*;
-use smpl_rs::common::{
+use smpl_core::common::{
     smpl_params::SmplParams,
     types::{Gender, SmplType},
 };

@@ -6,8 +6,8 @@ use ndarray as nd;
 use numpy::PyArrayMethods;
 use numpy::{PyArray1, PyReadonlyArray1, ToPyArray};
 use pyo3::prelude::*;
+use smpl_core::codec::codec::SmplCodec;
 use smpl_gloss_integration::codec::SmplCodecGloss;
-use smpl_rs::codec::codec::SmplCodec;
 #[pyclass(name = "SmplCodec", module = "smpl_rs.codec", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PySmplCodec {

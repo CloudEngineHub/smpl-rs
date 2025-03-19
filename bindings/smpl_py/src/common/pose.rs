@@ -7,7 +7,7 @@ use numpy::PyArray2;
 use numpy::PyReadonlyArray1;
 use numpy::{PyArrayMethods, ToPyArray};
 use pyo3::prelude::*;
-use smpl_rs::common::{
+use smpl_core::common::{
     pose::Pose,
     types::{SmplType, UpAxis},
 };

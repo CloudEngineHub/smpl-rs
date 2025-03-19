@@ -1,8 +1,7 @@
 use super::pose_chunked::PoseChunked;
 use crate::common::{
     metadata::{smpl_metadata, SmplMetadata},
-    pose::Pose,
-    types::SmplType,
+    pose::Pose, types::SmplType,
 };
 /// Will remap the pose from a certain model to another one. For example from
 /// smplh to smplx. This is because different models have different number of

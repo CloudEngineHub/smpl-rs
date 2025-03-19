@@ -3,8 +3,7 @@ use gloss_renderer::{
     viewer::Viewer,
 };
 use gloss_renderer::{config::LogLevel, gloss_setup_logger};
-use smpl_gloss_integration::{components::GlossInterop, plugin::SmplPlugin};
-use smpl_rs::common::{
+use smpl_core::common::{
     animation::{AnimWrap, Animation, AnimationConfig},
     betas::Betas,
     pose_hands::HandType,
@@ -14,6 +13,7 @@ use smpl_rs::common::{
     smpl_params::SmplParams,
     types::{Gender, SmplType, UpAxis},
 };
+use smpl_gloss_integration::{components::GlossInterop, plugin::SmplPlugin};
 use std::path::Path;
 fn main() {
     gloss_setup_logger(LogLevel::Info, None);

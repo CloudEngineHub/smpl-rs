@@ -1,3 +1,4 @@
+use gloss_utils::nshare::ToNalgebra;
 use nalgebra as na;
 use nalgebra::clamp;
 use ndarray as nd;
@@ -6,7 +7,6 @@ use std::{
     f32::consts::PI,
     ops::{Div, SubAssign},
 };
-use utils_rs::nshare::ToNalgebra;
 pub fn interpolate_angle(cur_angle: f32, other_angle: f32, _cur_w: f32, other_w: f32) -> f32 {
     let mut diff = other_angle - cur_angle;
     if diff.abs() > PI {

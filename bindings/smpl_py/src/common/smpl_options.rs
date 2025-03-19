@@ -2,7 +2,7 @@ use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
 use pyo3::prelude::*;
-use smpl_rs::common::smpl_options::SmplOptions;
+use smpl_core::common::smpl_options::SmplOptions;
 #[pyclass(name = "SmplOptions", module = "smpl_rs.components", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PySmplOptions {

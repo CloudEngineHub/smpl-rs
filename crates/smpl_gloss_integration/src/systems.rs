@@ -20,33 +20,33 @@ use gloss_renderer::{
     },
     scene::Scene,
 };
+use gloss_utils::abi_stable_aliases::std_types::{RNone, ROption, RString, RVec};
+use gloss_utils::tensor::BurnBackend;
+use gloss_utils::{
+    bshare::{ToBurn, ToNalgebraFloat, ToNalgebraInt, ToNdArray},
+    nshare::ToNalgebra,
+    tensor::{DynamicMatrixOps, DynamicTensorFloat2D, DynamicTensorInt2D},
+};
 use log::{info, warn};
 use nalgebra::{self as na};
-use smpl_rs::common::animation::AnimationConfig;
-use smpl_rs::common::smpl_model::{SmplCache, SmplModel};
-use smpl_rs::common::types::{GltfOutputType, UpAxis};
-use smpl_rs::common::{
+use smpl_core::common::animation::AnimationConfig;
+use smpl_core::common::smpl_model::{SmplCache, SmplModel};
+use smpl_core::common::types::{GltfOutputType, UpAxis};
+use smpl_core::common::{
     animation::Animation,
     betas::Betas,
     expression::{Expression, ExpressionOffsets},
     smpl_model::SmplCacheDynamic,
 };
-use smpl_rs::common::{
+use smpl_core::common::{
     outputs::{SmplOutputPoseTDynamic, SmplOutputPosedDynamic},
     pose::Pose,
     pose_corrective::PoseCorrectiveDynamic,
     pose_override::PoseOverride,
     smpl_params::SmplParams,
 };
-use smpl_rs::conversions::pose_remap::PoseRemap;
+use smpl_core::conversions::pose_remap::PoseRemap;
 use smpl_utils::io::FileType;
-use utils_rs::abi_stable_aliases::std_types::{RNone, ROption, RString, RVec};
-use utils_rs::tensor::BurnBackend;
-use utils_rs::{
-    bshare::{ToBurn, ToNalgebraFloat, ToNalgebraInt, ToNdArray},
-    nshare::ToNalgebra,
-    tensor::{DynamicMatrixOps, DynamicTensorFloat2D, DynamicTensorInt2D},
-};
 /// Check all entities with ``SmplParams`` and lazy load the smpl model if
 /// needed do it in two stages, first checking if we need to acually load
 /// anything and in the second stage we actually load stuff, this is in order to
@@ -860,11 +860,11 @@ pub extern "C" fn hide_floor_when_viewed_from_below(scene: &mut Scene, _runner: 
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_renderer::plugin_manager::gui::Button;
-    use smpl_rs::{
+    use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
+    use smpl_core::{
         codec::{codec::SmplCodec, gltf::GltfCodec},
         common::types::{Gender, GltfCompatibilityMode},
     };
-    use utils_rs::abi_stable_aliases::std_types::ROption::RSome;
     extern "C" fn enable_pose_corrective_toggle(new_val: bool, _widget_name: RString, entity: Entity, scene: &mut Scene) {
         if let Ok(mut smpl_params) = scene.world.get::<&mut SmplParams>(entity) {
             smpl_params.enable_pose_corrective = new_val;
@@ -875,7 +875,7 @@ pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut 
         codec.to_file("./saved.smpl");
     }
     extern "C" fn save_gltf_smpl(_widget_name: RString, _entity: Entity, scene: &mut Scene) {
-        let mut codec = GltfCodec::from_scene(scene, None, None);
+        let mut codec = GltfCodec::from_scene(scene, None, true);
         let now = wasm_timer::Instant::now();
         codec.to_file(
             "Meshcapade Avatar",
@@ -892,7 +892,7 @@ pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut 
         println!("Smpl mode `.gltf` export took {:?} seconds", now.elapsed());
     }
     extern "C" fn save_gltf_unreal(_widget_name: RString, _entity: Entity, scene: &mut Scene) {
-        let mut codec = GltfCodec::from_scene(scene, None, None);
+        let mut codec = GltfCodec::from_scene(scene, None, true);
         let now = wasm_timer::Instant::now();
         codec.to_file(
             "Meshcapade Avatar",
@@ -955,7 +955,7 @@ pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut 
 #[allow(clippy::semicolon_if_nothing_returned)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_betas_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
-    use utils_rs::abi_stable_aliases::std_types::ROption::RSome;
+    use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
     extern "C" fn beta_slider_change(new_val: f32, widget_name: RString, entity: Entity, scene: &mut Scene) {
         let beta_idx: usize = widget_name.split('_').last().unwrap().parse().unwrap();
         if let Ok(mut betas) = scene.world.get::<&mut Betas>(entity) {
@@ -990,7 +990,7 @@ pub extern "C" fn smpl_betas_gui(selected_entity: ROption<Entity>, scene: &mut S
 #[allow(clippy::semicolon_if_nothing_returned)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_expression_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
-    use utils_rs::abi_stable_aliases::std_types::ROption::RSome;
+    use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
     extern "C" fn expr_slider_change(new_val: f32, widget_name: RString, entity: Entity, scene: &mut Scene) {
         let coeff_idx: usize = widget_name.split('_').last().unwrap().parse().unwrap();
         if let Ok(mut coeffs) = scene.world.get::<&mut Expression>(entity) {
@@ -1026,7 +1026,7 @@ pub extern "C" fn smpl_expression_gui(selected_entity: ROption<Entity>, scene: &
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_renderer::plugin_manager::gui::{Button, WindowPivot, WindowPosition, WindowPositionType};
-    use utils_rs::abi_stable_aliases::std_types::ROption::RSome;
+    use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
     extern "C" fn scene_anim_slider_change(new_val: f32, _widget_name: RString, _entity: Entity, scene: &mut Scene) {
         if let Ok(mut scene_anim) = scene.get_resource::<&mut SceneAnimation>() {
             scene_anim.set_cur_time_as_sec(new_val);
@@ -1108,9 +1108,9 @@ pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene:
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_hand_pose_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_renderer::plugin_manager::gui::SelectableList;
+    use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
     use log::warn;
-    use smpl_rs::common::pose_hands::HandType;
-    use utils_rs::abi_stable_aliases::std_types::ROption::RSome;
+    use smpl_core::common::pose_hands::HandType;
     extern "C" fn set_hand_pose_type(widget_name: RString, entity: Entity, scene: &mut Scene) {
         let hand_type = match widget_name.to_string().as_str() {
             "Flat" => Some(HandType::Flat),
@@ -1179,7 +1179,7 @@ pub extern "C" fn smpl_hand_pose_gui(selected_entity: ROption<Entity>, scene: &m
 pub extern "C" fn smpl_event_dropfile(scene: &mut Scene, _runner: &mut RunnerState, event: &Event) -> bool {
     use crate::scene::McsCodecGloss;
     use log::warn;
-    use smpl_rs::codec::{codec::SmplCodec, scene::McsCodec};
+    use smpl_core::codec::{codec::SmplCodec, scene::McsCodec};
     use std::path::PathBuf;
     let mut handled = false;
     match event {

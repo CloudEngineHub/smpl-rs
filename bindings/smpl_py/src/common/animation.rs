@@ -8,7 +8,7 @@ use gloss_renderer::scene::Scene;
 use ndarray as nd;
 use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, ToPyArray};
 use pyo3::{exceptions::PyValueError, prelude::*};
-use smpl_rs::common::{
+use smpl_core::common::{
     animation::{AnimWrap, Animation, AnimationConfig},
     types::{AngleType, SmplType, UpAxis},
 };

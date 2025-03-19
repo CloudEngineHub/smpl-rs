@@ -10,14 +10,14 @@ use burn::backend::Candle;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
+use gloss_utils::bshare::ToNdArray;
 use numpy::{PyArray1, PyArray2, ToPyArray};
 use pyo3::prelude::*;
-use smpl_rs::common::smpl_model::SmplModel;
-use smpl_rs::{
+use smpl_core::common::smpl_model::SmplModel;
+use smpl_core::{
     common::types::Gender,
     smpl_x::smpl_x_gpu::{SmplXDynamic, SmplXGPU},
 };
-use utils_rs::bshare::ToNdArray;
 #[pyclass(name = "SmplXGPU", module = "smpl_rs.models", unsendable)]
 pub struct PySmplXGPU {
     pub inner: SmplXGPU<Candle>,

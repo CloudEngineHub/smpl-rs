@@ -1,7 +1,4 @@
-use burn::{
-    prelude::Backend,
-    tensor::{Float, Tensor},
-};
+use burn::{prelude::Backend, tensor::{Float, Tensor}};
 use log::warn;
 use ndarray as nd;
 /// Component for Smpl Expressions or Expression Parameters
@@ -27,11 +24,14 @@ impl Expression {
     #[must_use]
     pub fn interpolate(&self, other_pose: &Self, other_weight: f32) -> Self {
         if !(0.0..=1.0).contains(&other_weight) {
-            warn!("pose interpolation weight is outside the [0,1] range, will clamp. Weight is {other_weight}");
+            warn!(
+                "pose interpolation weight is outside the [0,1] range, will clamp. Weight is {other_weight}"
+            );
         }
         let other_weight = other_weight.clamp(0.0, 1.0);
         let cur_w = 1.0 - other_weight;
-        let new_expression = cur_w * &self.expr_coeffs + other_weight * &other_pose.expr_coeffs;
+        let new_expression = cur_w * &self.expr_coeffs
+            + other_weight * &other_pose.expr_coeffs;
         Self::new(new_expression)
     }
 }

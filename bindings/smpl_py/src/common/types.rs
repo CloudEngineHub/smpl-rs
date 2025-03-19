@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use smpl_rs::common::types::{AngleType, Gender, GltfCompatibilityMode, SmplType, UpAxis};
+use smpl_core::common::types::{AngleType, Gender, GltfCompatibilityMode, SmplType, UpAxis};
 use smpl_utils::{convert_enum_from, convert_enum_into};
 #[pyclass(name = "UpAxis", module = "smpl_rs.types", unsendable, eq, eq_int)]
 #[derive(Debug, Clone, Copy, PartialEq)]

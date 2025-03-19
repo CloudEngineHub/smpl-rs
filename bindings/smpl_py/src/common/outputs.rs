@@ -2,10 +2,10 @@ use burn::backend::{candle::CandleDevice, Candle};
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
+use gloss_utils::bshare::{ToBurn, ToNdArray};
 use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray2, ToPyArray};
 use pyo3::prelude::*;
-use smpl_rs::common::outputs::{SmplOutputDynamic, SmplOutputPoseTDynamic, SmplOutputPosedDynamic};
-use utils_rs::bshare::{ToBurn, ToNdArray};
+use smpl_core::common::outputs::{SmplOutputDynamic, SmplOutputPoseTDynamic, SmplOutputPosedDynamic};
 #[pyclass(name = "SmplOutputPoseT", module = "smpl_rs.models", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PySmplOutputPoseT {
