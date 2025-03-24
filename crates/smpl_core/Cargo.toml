@@ -42,6 +42,9 @@ gloss-utils.workspace=true
 burn.workspace=true
 wgpu.workspace=true
 bytemuck.workspace=true
+bytemuck_derive.workspace=true
+native-tls = "=0.2.13"
+litemap = "=0.7.4"
 futures.workspace=true
 pollster.workspace=true
 wasm-bindgen.workspace=true

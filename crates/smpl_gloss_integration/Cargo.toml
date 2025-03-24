@@ -40,6 +40,8 @@ strum.workspace=true
 smallvec.workspace=true
 map-range.workspace=true
 image.workspace=true
+bytemuck_derive.workspace=true
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 abi_stable.workspace=true
 

@@ -18,6 +18,7 @@ ndarray.workspace=true
 num-traits.workspace=true
 nalgebra.workspace=true
 bytemuck.workspace=true
+bytemuck_derive.workspace=true
 gloss-utils.workspace=true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

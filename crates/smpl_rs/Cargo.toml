@@ -19,6 +19,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 smpl-core.workspace = true
 smpl-gloss-integration.workspace = true
 smpl-utils.workspace = true
+bytemuck_derive.workspace=true
 
 [lib]
 crate-type = ["rlib"]

@@ -512,18 +512,18 @@ checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
 
 [[package]]
 name = "bytemuck"
-version = "1.19.0"
+version = "1.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8334215b81e418a0a7bdb8ef0849474f40bb10c8b71f1c4ed315cff49f32494d"
+checksum = "ef657dfab802224e671f5818e9a4935f9b1957ed18e58292690cc39e7a4092a3"
 dependencies = [
  "bytemuck_derive",
 ]
 
 [[package]]
 name = "bytemuck_derive"
-version = "1.8.0"
+version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcfcc3cd946cb52f0bbfdbbcfa2f4e24f75ebb6c0e1002f7c25904fada18b9ec"
+checksum = "3fa76293b4f7bb636ab88fd78228235b5248b4d05cc589aed610f954af5d7c7a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2680,9 +2680,9 @@ dependencies = [
 
 [[package]]
 name = "iter-read"
-version = "0.3.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c397ca3ea05ad509c4ec451fea28b4771236a376ca1c69fd5143aae0cf8f93c4"
+checksum = "071ed4cc1afd86650602c7b11aa2e1ce30762a1c27193201cb5cee9c6ebb1294"
 
 [[package]]
 name = "itertools"
@@ -4632,9 +4632,9 @@ dependencies = [
 
 [[package]]
 name = "serde-pickle"
-version = "1.1.1"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c762ad136a26407c6a80825813600ceeab5e613660d93d79a41f0ec877171e71"
+checksum = "b641fdc8bcf2781ee78b30c599700d64ad4f412976143e4c5d0b9df906bb4843"
 dependencies = [
  "byteorder",
  "iter-read",
@@ -4787,6 +4787,7 @@ dependencies = [
  "base64 0.13.1",
  "burn",
  "bytemuck",
+ "bytemuck_derive",
  "cfg-if",
  "console_error_panic_hook",
  "console_log",
@@ -4802,8 +4803,10 @@ dependencies = [
  "indexmap 2.6.0",
  "itertools 0.12.1",
  "js-sys",
+ "litemap",
  "log",
  "nalgebra",
+ "native-tls",
  "ndarray",
  "ndarray-npy",
  "num-derive",
@@ -4828,6 +4831,7 @@ version = "0.5.4"
 dependencies = [
  "abi_stable",
  "burn",
+ "bytemuck_derive",
  "cfg-if",
  "console_error_panic_hook",
  "console_log",
@@ -4876,6 +4880,7 @@ dependencies = [
 name = "smpl-rs"
 version = "0.5.4"
 dependencies = [
+ "bytemuck_derive",
  "smpl-core",
  "smpl-gloss-integration",
  "smpl-utils",
@@ -4886,6 +4891,7 @@ name = "smpl-utils"
 version = "0.5.4"
 dependencies = [
  "bytemuck",
+ "bytemuck_derive",
  "console_error_panic_hook",
  "console_log",
  "gloss-utils",
