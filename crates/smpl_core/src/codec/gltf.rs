@@ -29,11 +29,12 @@ use smpl_utils::{
     },
 };
 use std::borrow::Cow;
-use std::{fs, mem};
 use std::{
+    f32::consts::PI,
     io::{Cursor, Write},
     path::Path,
 };
+use std::{fs, mem};
 /// Enum for attribute ID's of a GLTF primitive (to avoid working with arbitrary
 /// numbers)
 #[repr(u32)]
@@ -116,6 +117,8 @@ pub struct GltfCodec {
     pub frame_count: Option<usize>,
     pub keyframe_times: Option<Vec<f32>>,
     pub morph_targets: Option<nd::Array3<f32>>,
+    pub num_pose_morph_targets: usize,
+    pub num_expression_morph_targets: usize,
     pub per_body_data: Vec<PerBodyData>,
     pub camera_track: Option<CameraTrack>,
 }
@@ -133,6 +136,8 @@ impl Default for GltfCodec {
             frame_count: None,
             keyframe_times: None,
             morph_targets: None,
+            num_pose_morph_targets: 0,
+            num_expression_morph_targets: 0,
             per_body_data: Vec::new(),
             camera_track: None,
         }
@@ -280,6 +285,35 @@ impl GltfCodec {
         };
         let scenes = vec![scene];
         for (body_idx, current_body) in self.per_body_data.clone().iter_mut().enumerate() {
+            if compatibility_mode == GltfCompatibilityMode::Smpl && self.num_pose_morph_targets > 0 {
+                let num_pose_morph_targets = self.num_pose_morph_targets - 1;
+                current_body
+                    .per_frame_blend_weights
+                    .as_mut()
+                    .unwrap()
+                    .slice_mut(s![.., 0..num_pose_morph_targets])
+                    .mapv_inplace(|elem| (elem + PI) / (2.0 * PI));
+                current_body
+                    .per_frame_blend_weights
+                    .as_mut()
+                    .unwrap()
+                    .slice_mut(s![.., num_pose_morph_targets])
+                    .assign(&nd::Array1::<f32>::from_elem(self.frame_count.unwrap(), 1.0));
+            }
+            if compatibility_mode == GltfCompatibilityMode::Unreal && self.num_pose_morph_targets > 0 {
+                let remap = [0, 2, 1, 6, 8, 7, 3, 5, 4];
+                let num_pose_morph_targets = self.num_pose_morph_targets - 1;
+                let morph_weights = current_body.per_frame_blend_weights.as_mut().unwrap();
+                let mut remapped_weights = morph_weights.clone();
+                for chunk in (0..num_pose_morph_targets).step_by(9) {
+                    for (i, &old_idx) in remap.iter().enumerate() {
+                        remapped_weights
+                            .slice_mut(s![.., chunk + i])
+                            .assign(&morph_weights.slice(s![.., chunk + old_idx]));
+                    }
+                }
+                current_body.per_frame_blend_weights = Some(remapped_weights);
+            }
             assert!(current_body.positions.is_some(), "GltfCodec: no vertices for body {body_idx}!");
             assert!(current_body.normals.is_some(), "GltfCodec: no normals for body {body_idx}!");
             let mut positions = current_body.positions.clone().unwrap();
@@ -522,6 +556,7 @@ impl GltfCodec {
             );
             let (buffer_data, composed_buffer_views) = self.compose_buffer_views(
                 body_idx,
+                current_body,
                 current_buffer_views.clone(),
                 index_data.as_slice(),
                 vertex_data.as_slice(),
@@ -1394,7 +1429,7 @@ impl GltfCodec {
         bind_matrices
     }
     /// Function to create animation buffer data
-    pub fn create_animation_data(&self, body_idx: usize, compatibility_mode: GltfCompatibilityMode) -> Vec<u8> {
+    pub fn create_animation_data(&self, body_idx: usize, current_body: &PerBodyData, compatibility_mode: GltfCompatibilityMode) -> Vec<u8> {
         let mut animation_data: Vec<u8> = vec![];
         let keyframe_data = to_padded_byte_vector(self.keyframe_times.as_ref().unwrap());
         let rotation_animation_data = self.per_body_data[body_idx].body_rotations.as_ref().unwrap();
@@ -1439,7 +1474,7 @@ impl GltfCodec {
             animation_data.append(&mut scale_anim_data.clone());
         }
         if self.num_morph_targets() > 0 {
-            let morph_target_weights_data = self.per_body_data[body_idx].per_frame_blend_weights.as_ref().unwrap();
+            let morph_target_weights_data = current_body.per_frame_blend_weights.as_ref().unwrap();
             let weights_anim_data = to_padded_byte_vector(&morph_target_weights_data.to_owned().into_raw_vec_and_offset().0);
             animation_data.append(&mut weights_anim_data.clone());
         }
@@ -1450,6 +1485,7 @@ impl GltfCodec {
     fn compose_buffer_views(
         &self,
         body_idx: usize,
+        current_body: &PerBodyData,
         buffer_views: Vec<gltf_json::buffer::View>,
         index_data: &[u8],
         vertex_data: &[u8],
@@ -1463,11 +1499,18 @@ impl GltfCodec {
         out_data.append(&mut vertex_data.to_owned());
         out_data.append(&mut inv_bind_mat_data.to_owned());
         if self.is_animated() {
-            let mut animation_data = self.create_animation_data(body_idx, compatibility_mode);
+            let mut animation_data = self.create_animation_data(body_idx, current_body, compatibility_mode);
             out_data.append(&mut animation_data);
             if self.num_morph_targets() > 0 && body_idx == 0 {
                 for morph_target_idx in 0..self.num_morph_targets() {
-                    let posedir = self.morph_targets.as_ref().unwrap().slice(s![morph_target_idx, .., ..]).to_owned();
+                    let mut posedir = self.morph_targets.as_ref().unwrap().slice(s![morph_target_idx, .., ..]).to_owned();
+                    let num_pose_morph_targets = self.num_pose_morph_targets - 1;
+                    if compatibility_mode == GltfCompatibilityMode::Smpl
+                        && self.num_pose_morph_targets > 0
+                        && morph_target_idx < num_pose_morph_targets
+                    {
+                        posedir *= 2.0 * PI;
+                    }
                     let posedir_data = to_padded_byte_vector(&posedir.to_owned().into_raw_vec_and_offset().0);
                     out_data.append(&mut posedir_data.clone());
                 }

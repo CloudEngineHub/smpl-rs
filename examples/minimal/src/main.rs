@@ -24,7 +24,7 @@ fn main() {
     let path_diffuse = "./data/smplx/female_alb_2.png";
     let path_normal = "./data/smplx/female_nrm.png";
     let path_roughness = "./data/smplx/texture_f_r.png";
-    let path_anim = "./data/smplx/apose_to_catwalk_001.npz";
+    let path_anim = "./data/smplx/apose_to_00093lazysaturdaynightfever.npz";
     let entity = viewer.scene.get_or_create_entity("mesh_smpl").entity();
     viewer
         .scene

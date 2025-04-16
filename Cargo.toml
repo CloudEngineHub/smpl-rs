@@ -11,11 +11,13 @@ members = [
 authors = ["Radu Alexandru Rosu <alex@meshcapade.com>", "Aman Shenoy <aman@meshcapade.com>"]
 edition = "2021"
 rust-version = "1.79"
-version = "0.5.4"
+version = "0.5.5"
 description = "A suite of SMPL functionality written over gloss"
 license = "MIT"
 repository = "https://github.com/Meshcapade/smpl-rs"
 readme = "README.md"
+keywords = ["3d", "graphics", "animation", "mesh", "smpl", "smplx"]
+
 # =====================================================================
 [workspace.dependencies]
 # my crates
@@ -55,7 +57,7 @@ serde_json = "1.0"
 smallvec = "1.11"
 abi_stable = "0.11.3"
 abi_stable_derive = "0.11.3"
-reqwest = { version = "0.12.0", features = ["json"] }
+# reqwest = { version = "0.12.0", features = ["json"] }
 gltf-json = { version = "1.4.1", features = ["extras", "extensions"] }
 dyn-clone ="1.0"
 burn = { version = "0.14", default-features = false, features=["ndarray", "wgpu", "candle", "autotune"]}
@@ -64,6 +66,7 @@ bytemuck = { version = "1.12", features = [ "derive" ] }
 futures = "0.3"
 wasm-bindgen="=0.2.100"
 bytemuck_derive = "=1.8.1"
+crossbeam-channel = "=0.5.15"
 
 # =====================================================================
 [profile.dev]

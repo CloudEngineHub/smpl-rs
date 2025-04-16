@@ -12,7 +12,7 @@ You can install the Python bindings for SMPL-RS using pip:
 pip install smpl-rs
 ```
 ## Dependencies
-The main dependency is [gloss](https://github.com/Meshcapade/gloss), which you can install as 
+SMPL-rs can be a standalone library, but we recommend using it with [gloss](https://github.com/Meshcapade/gloss) for rendering and additional functionality. You could use it with other tools for visualisation, but most of the examples in `examples` are for usage with gloss. 
 
 ```bash
 pip install gloss-rs

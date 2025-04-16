@@ -7,6 +7,7 @@ publish = true
 license.workspace = true
 readme.workspace = true
 rust-version.workspace = true
+keywords.workspace = true
 documentation = "https://docs.rs/smpl-rs"
 repository.workspace = true
 version.workspace = true

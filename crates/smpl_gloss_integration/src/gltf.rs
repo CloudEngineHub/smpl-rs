@@ -243,14 +243,13 @@ where
                         .into_shape_with_order((vertex_count, 3, metadata.num_pose_blend_shapes))
                         .unwrap()
                         .permuted_axes([2, 0, 1]);
-                    let morph_targets = (2.0 * PI) * pose_blend_shapes.clone();
                     let pi = nd::Array1::<f32>::from_elem(metadata.num_pose_blend_shapes, -PI);
                     let pi_array = pi.insert_axis(nd::Axis(1)).insert_axis(nd::Axis(2));
                     assert_eq!(pose_blend_shapes.shape()[0], pi_array.len());
-                    let template_offset = (pose_blend_shapes * &pi_array).sum_axis(nd::Axis(0));
+                    let template_offset = (pose_blend_shapes.clone() * &pi_array).sum_axis(nd::Axis(0));
                     pose_morph_targets
                         .slice_mut(s![0..metadata.num_pose_blend_shapes, .., ..])
-                        .assign(&morph_targets);
+                        .assign(&(pose_blend_shapes));
                     pose_morph_targets
                         .slice_mut(s![metadata.num_pose_blend_shapes, .., ..])
                         .assign(&template_offset);
@@ -263,6 +262,7 @@ where
                         ])
                         .assign(&pose_morph_targets);
                     running_idx_morph_target += metadata.num_pose_blend_shapes + 1;
+                    gltf_codec.num_pose_morph_targets = metadata.num_pose_blend_shapes + 1;
                 }
                 #[allow(unused_assignments)]
                 if should_export_exprdirs {
@@ -288,6 +288,7 @@ where
                             ])
                             .assign(&expression_dirs_split);
                         running_idx_morph_target += num_expression_blend_shapes;
+                        gltf_codec.num_expression_morph_targets = num_expression_blend_shapes;
                     }
                 }
                 gltf_codec.morph_targets = Some(full_morph_targets);
@@ -325,14 +326,13 @@ where
                 let mut running_idx_morph_target = 0;
                 if should_export_posedirs {
                     let pose_blend_weights = &smpl_model.compute_pose_feature(&pose);
-                    let rescaled_pose_blend_weights = pose_blend_weights.map(|&elem| (elem + PI) / (2.0 * PI));
                     current_per_frame_blend_weights
                         .slice_mut(s![global_frame_idx, 0..metadata.num_pose_blend_shapes])
-                        .assign(&rescaled_pose_blend_weights);
+                        .assign(pose_blend_weights);
                     if global_frame_idx == (anim.start_offset + anim.num_animation_frames()) {
                         current_per_frame_blend_weights
                             .slice_mut(s![global_frame_idx..nr_frames, 0..metadata.num_pose_blend_shapes])
-                            .assign(&rescaled_pose_blend_weights);
+                            .assign(pose_blend_weights);
                     }
                     running_idx_morph_target += metadata.num_pose_blend_shapes + 1;
                 }
@@ -359,7 +359,7 @@ where
             if should_export_posedirs {
                 current_per_frame_blend_weights
                     .slice_mut(s![.., metadata.num_pose_blend_shapes])
-                    .assign(&nd::Array1::<f32>::from_elem(nr_frames, 1.0));
+                    .assign(&nd::Array1::<f32>::from_elem(nr_frames, 0.0));
             }
             if should_export_posedirs || should_export_exprdirs {
                 current_body.per_frame_blend_weights = Some(current_per_frame_blend_weights);

@@ -19,7 +19,7 @@ fn main() {
     let mut viewer = Viewer::new(config_path.to_str());
     let mut smpl_models = SmplCacheDynamic::default();
     smpl_models.set_lazy_loading(SmplType::SmplX, Gender::Neutral, "./data/smplx/SMPLX_neutral_array_f32_slim.npz");
-    let scene_path = "./data/mcs/boxing.mcs";
+    let scene_path = "./data/mcs/skate_04.mcs";
     let mut mcs_codec = McsCodec::from_file(scene_path);
     let builders = mcs_codec.to_entity_builders();
     for mut builder in builders {
