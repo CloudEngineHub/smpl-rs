@@ -151,19 +151,22 @@ pub extern "C" fn smpl_advance_anim(scene: &mut Scene, runner: &mut RunnerState)
             let current_global_time = scene_anim.runner.anim_current_time.as_secs_f32();
             for entity in entities_with_anim.iter() {
                 let mut smpl_anim = scene.get_comp::<&mut Animation>(entity).unwrap();
+                let anim_paused = smpl_anim.runner.paused || smpl_anim.runner.temporary_pause;
                 let global_fps = scene_anim.config.fps;
                 smpl_anim.config.fps = global_fps;
                 let start_offset = smpl_anim.start_offset;
                 let is_within_interval = current_global_time >= (smpl_anim.start_offset as f32 / scene_anim.config.fps)
                     && current_global_time <= ((smpl_anim.start_offset + smpl_anim.num_animation_frames()) as f32 / scene_anim.config.fps);
                 if is_within_interval {
-                    smpl_anim.set_cur_time_as_sec(current_global_time - (start_offset as f32 / global_fps));
+                    if !anim_paused {
+                        smpl_anim.set_cur_time_as_sec(current_global_time - (start_offset as f32 / global_fps));
+                    }
                     entities_within_interval.push(*entity);
                 } else {
                     entities_outside_interval.push(*entity);
                     continue;
                 }
-                if !scene_anim.runner.paused && !scene_anim.runner.temporary_pause {
+                if !scene_anim.runner.paused && !scene_anim.runner.temporary_pause && !anim_paused {
                     let is_added = smpl_anim.is_added();
                     smpl_anim.advance(runner.dt(), runner.is_first_time() || is_added);
                 }
