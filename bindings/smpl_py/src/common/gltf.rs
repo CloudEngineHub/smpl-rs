@@ -21,12 +21,12 @@ impl PyGltfCodec {
         Self { inner: GltfCodec::default() }
     }
     #[staticmethod]
-    #[pyo3(text_signature = "(scene_ptr_idx: int) -> GltfCodec")]
-    pub fn from_scene(scene_ptr_idx: u64) -> Self {
+    #[pyo3(text_signature = "(scene_ptr_idx: int, export_camera: bool = True) -> GltfCodec")]
+    pub fn from_scene(scene_ptr_idx: u64, export_camera: bool) -> Self {
         let scene_ptr = scene_ptr_idx as *mut Scene;
         let scene: &Scene = unsafe { &*scene_ptr };
         Self {
-            inner: GltfCodec::from_scene(scene, None, true),
+            inner: GltfCodec::from_scene(scene, None, export_camera),
         }
     }
     #[pyo3(signature = (path, compatibility_mode = None))]

@@ -9,7 +9,7 @@ use smpl_core::{
     common::smpl_model::{SmplCache, SmplCacheDynamic},
     smpl_x::smpl_x_gpu::SmplXGPU,
 };
-#[pyclass(name = "SmplCache", module = "smpl_rs.models", unsendable)]
+#[pyclass(name = "SmplCache", unsendable)]
 pub struct PySmplModels {
     inner: Option<SmplCacheDynamic>,
 }

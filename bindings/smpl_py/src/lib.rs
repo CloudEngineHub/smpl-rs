@@ -14,6 +14,8 @@ use common::{
     pose::PyPose,
     pose_hands::PyHandType,
     pose_override::PyPoseOverride,
+    scene::PyMcsCodec,
+    scene_timer::PySceneTimer,
     smpl_models::PySmplModels,
     smpl_options::PySmplOptions,
     smpl_params::PySmplParams,
@@ -37,6 +39,7 @@ pub fn extension(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     let plugins_module = PyModule::new_bound(_py, "plugins")?;
     let codec_module = PyModule::new_bound(_py, "codec")?;
     m.add_class::<PySmplModels>()?;
+    m.add_class::<PySceneTimer>()?;
     add_submod_models(_py, &models_module)?;
     add_submod_components(_py, &components_module)?;
     add_submod_types(_py, &types_module)?;
@@ -106,6 +109,7 @@ fn add_submod_plugins(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pymodule]
 fn add_submod_codec(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PySmplCodec>()?;
+    m.add_class::<PyMcsCodec>()?;
     m.add_class::<PyGltfCodec>()?;
     Ok(())
 }

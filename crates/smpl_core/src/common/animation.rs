@@ -40,7 +40,7 @@ impl Default for AnimationConfig {
     fn default() -> Self {
         Self {
             fps: 60.0,
-            wrap_behaviour: AnimWrap::Loop,
+            wrap_behaviour: AnimWrap::Clamp,
             angle_type: AngleType::AxisAngle,
             up_axis: UpAxis::Y,
             smpl_type: SmplType::SmplX,

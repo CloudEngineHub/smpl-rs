@@ -10,6 +10,8 @@ pub mod outputs;
 pub mod pose;
 pub mod pose_hands;
 pub mod pose_override;
+pub mod scene;
+pub mod scene_timer;
 pub mod smpl_model;
 pub mod smpl_models;
 pub mod smpl_options;
