@@ -7,6 +7,17 @@ use std::{
     f32::consts::PI,
     ops::{Div, SubAssign},
 };
+pub fn hex_to_rgb(hex: &str) -> (u8, u8, u8) {
+    let hex = hex.trim_start_matches('#');
+    let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(0);
+    let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(0);
+    let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(0);
+    (r, g, b)
+}
+pub fn hex_to_rgb_f32(hex: &str) -> (f32, f32, f32) {
+    let (r, g, b) = hex_to_rgb(hex);
+    (f32::from(r) / 255.0, f32::from(g) / 255.0, f32::from(b) / 255.0)
+}
 pub fn interpolate_angle(cur_angle: f32, other_angle: f32, _cur_w: f32, other_w: f32) -> f32 {
     let mut diff = other_angle - cur_angle;
     if diff.abs() > PI {

@@ -960,7 +960,7 @@ pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut 
 pub extern "C" fn smpl_betas_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
     extern "C" fn beta_slider_change(new_val: f32, widget_name: RString, entity: Entity, scene: &mut Scene) {
-        let beta_idx: usize = widget_name.split('_').last().unwrap().parse().unwrap();
+        let beta_idx: usize = widget_name.split(' ').last().unwrap().parse().unwrap();
         if let Ok(mut betas) = scene.world.get::<&mut Betas>(entity) {
             betas.betas[beta_idx] = new_val;
         }
@@ -970,7 +970,7 @@ pub extern "C" fn smpl_betas_gui(selected_entity: ROption<Entity>, scene: &mut S
         if let Ok(betas) = scene.world.get::<&Betas>(entity) {
             for i in 0..betas.betas.len() {
                 let slider = Slider::new(
-                    ("Beta_".to_owned() + &i.to_string()).as_str(),
+                    ("Beta ".to_owned() + &i.to_string()).as_str(),
                     betas.betas[i],
                     -5.0,
                     5.0,
@@ -1078,18 +1078,18 @@ pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene:
             let max_duration = scene_anim.duration().as_secs_f32();
             let cur_time = scene_anim.get_cur_time().as_secs_f32();
             let slider_anim = Slider::new(
-                "AnimTime",
+                "Time",
                 cur_time,
                 0.0,
                 max_duration,
-                RSome(400.0),
+                RSome(800.0),
                 scene_anim_slider_change,
                 RSome(scene_anim_slider_no_change as extern "C" fn(RString, Entity, &mut Scene)),
             );
-            let button_play_pause = Button::new("play/pause", scene_button_play_pause);
-            let button_next_frame = Button::new("next_frame", scene_button_next_frame);
+            let button_play_pause = Button::new("Play / Pause", scene_button_play_pause);
+            let button_next_frame = Button::new("Next Frame", scene_button_next_frame);
             let slider_fps = Slider::new("FPS", scene_anim.config.fps, 1.0, 120.0, RSome(100.0), scene_fps_slider_change, RNone);
-            let chk_follow_anim = Checkbox::new("follow", scene.has_resource::<Follower>(), follow_anim);
+            let chk_follow_anim = Checkbox::new("Follow", scene.has_resource::<Follower>(), follow_anim);
             widgets.push(Widgets::Slider(slider_anim));
             widgets.push(Widgets::Horizontal(RVec::from(vec![
                 Widgets::Button(button_play_pause),
@@ -1100,8 +1100,8 @@ pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene:
         }
     }
     GuiWindow {
-        window_name: RString::from("Scene"),
-        window_type: GuiWindowType::FloatWindow(WindowPivot::CenterBottom, WindowPosition([0.5, 1.0]), WindowPositionType::Fixed),
+        window_name: RString::from("Animation"),
+        window_type: GuiWindowType::FloatWindow(WindowPivot::CenterBottom, WindowPosition([0.6, 1.0]), WindowPositionType::Fixed),
         widgets,
     }
 }

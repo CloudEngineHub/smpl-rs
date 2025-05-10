@@ -1,6 +1,6 @@
 use crate::components::GlossInterop;
 use gloss_hecs::EntityBuilder;
-use gloss_renderer::components::Name;
+use gloss_renderer::components::{Name, VisMesh};
 use log::info;
 use ndarray::s;
 use smpl_core::{
@@ -12,9 +12,10 @@ use smpl_core::{
         smpl_params::SmplParams,
     },
 };
+use smpl_utils::numerical::hex_to_rgb_f32;
 use std::time::Duration;
+const COLOR_CODES: [&str; 4] = ["#63D4BF", "#BAC2F7", "#FFEF9E", "#72B0C5"];
 /// creates a ``Vec<gloss_hecs::EntityBuilder>`` from the ``McsCodec``
-/// TODO: Treat Camera tracks like an entity and this should be in the Vec
 pub trait McsCodecGloss {
     fn to_entity_builders(&mut self) -> Vec<EntityBuilder>;
 }
@@ -29,10 +30,11 @@ impl McsCodecGloss for McsCodec {
             camera_builder.add(camera_track.clone());
             builders.push(camera_builder);
         }
-        for smpl_body in self.smpl_bodies.iter() {
+        for (i, smpl_body) in self.smpl_bodies.iter().enumerate() {
             let start_offset = smpl_body.frame_presence[0];
             let fps = smpl_body.codec.frame_rate.unwrap();
             self.frame_rate = fps;
+            let color = hex_to_rgb_f32(COLOR_CODES[i % COLOR_CODES.len()]);
             let mut builder = EntityBuilder::new();
             let smpl_params = SmplParams::new_from_smpl_codec(&smpl_body.codec);
             info!("Found smpl_params in the .smpl file");
@@ -50,6 +52,10 @@ impl McsCodecGloss for McsCodec {
             let pose_override = PoseOverride::allow_all();
             builder.add(pose_override);
             builder.add(GlossInterop { with_uv: true });
+            builder.add(VisMesh {
+                solid_color: nalgebra::Vector4::<f32>::new(color.0, color.1, color.2, 1.0),
+                ..Default::default()
+            });
             builders.push(builder);
         }
         builders

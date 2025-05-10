@@ -11,6 +11,15 @@ Unreleased` header.
 
 # Unreleased
 
+# 0.6.0
+
+<!-- ### ⚠️ BREAKING -->
+<!-- ### ⭐ Added -->
+### 🔧 Changed
+- Updated Gloss to v0.6.0
+- Some changes to make the glTF more conformant and more options for export 
+- `.mcs` Scene features exposed to python bindings 
+- Successive Entities now have different colors according to a fixed palette 
 
 
 # 0.5.0

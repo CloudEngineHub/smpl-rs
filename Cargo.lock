@@ -1190,8 +1190,8 @@ dependencies = [
 
 [[package]]
 name = "easy-wgpu"
-version = "0.5.6"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd#4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd"
+version = "0.6.0"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=f12fa2b64f06f51e697a4677c94ca8a43b76a8e6#f12fa2b64f06f51e697a4677c94ca8a43b76a8e6"
 dependencies = [
  "bytemuck",
  "encase",
@@ -1866,8 +1866,8 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "gloss-hecs"
-version = "0.5.6"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd#4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd"
+version = "0.6.0"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=f12fa2b64f06f51e697a4677c94ca8a43b76a8e6#f12fa2b64f06f51e697a4677c94ca8a43b76a8e6"
 dependencies = [
  "abi_stable",
  "gloss-hecs-macros",
@@ -1881,8 +1881,8 @@ dependencies = [
 
 [[package]]
 name = "gloss-hecs-macros"
-version = "0.5.6"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd#4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd"
+version = "0.6.0"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=f12fa2b64f06f51e697a4677c94ca8a43b76a8e6#f12fa2b64f06f51e697a4677c94ca8a43b76a8e6"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1891,20 +1891,22 @@ dependencies = [
 
 [[package]]
 name = "gloss-img"
-version = "0.5.6"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd#4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd"
+version = "0.6.0"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=f12fa2b64f06f51e697a4677c94ca8a43b76a8e6#f12fa2b64f06f51e697a4677c94ca8a43b76a8e6"
 dependencies = [
  "bytemuck",
  "flate2",
+ "half",
  "image",
+ "image-webp",
  "num-traits",
  "png",
 ]
 
 [[package]]
 name = "gloss-renderer"
-version = "0.5.6"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd#4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd"
+version = "0.6.0"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=f12fa2b64f06f51e697a4677c94ca8a43b76a8e6#f12fa2b64f06f51e697a4677c94ca8a43b76a8e6"
 dependencies = [
  "abi_stable",
  "burn",
@@ -1955,8 +1957,8 @@ dependencies = [
 
 [[package]]
 name = "gloss-utils"
-version = "0.5.6"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd#4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd"
+version = "0.6.0"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=f12fa2b64f06f51e697a4677c94ca8a43b76a8e6#f12fa2b64f06f51e697a4677c94ca8a43b76a8e6"
 dependencies = [
  "abi_stable",
  "async-trait",
@@ -1993,8 +1995,8 @@ dependencies = [
 
 [[package]]
 name = "gloss_py_macros"
-version = "0.5.6"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd#4ce113b8c15a4bebdd4f45240f7f9a1c4184ecfd"
+version = "0.6.0"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=f12fa2b64f06f51e697a4677c94ca8a43b76a8e6#f12fa2b64f06f51e697a4677c94ca8a43b76a8e6"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -2513,6 +2515,16 @@ dependencies = [
  "tiff",
  "zune-core",
  "zune-jpeg",
+]
+
+[[package]]
+name = "image-webp"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e031e8e3d94711a9ccb5d6ea357439ef3dcbed361798bd4071dc4d9793fbe22f"
+dependencies = [
+ "byteorder-lite",
+ "quick-error",
 ]
 
 [[package]]
@@ -4060,6 +4072,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-error"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
+
+[[package]]
 name = "quote"
 version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4643,7 +4661,7 @@ dependencies = [
 
 [[package]]
 name = "smpl-core"
-version = "0.5.6"
+version = "0.6.0"
 dependencies = [
  "base64 0.13.1",
  "burn",
@@ -4687,7 +4705,7 @@ dependencies = [
 
 [[package]]
 name = "smpl-gloss-integration"
-version = "0.5.6"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "burn",
@@ -4721,7 +4739,7 @@ dependencies = [
 
 [[package]]
 name = "smpl-measurements"
-version = "0.5.6"
+version = "0.6.0"
 dependencies = [
  "enum-map",
  "gloss-utils",
@@ -4739,7 +4757,7 @@ dependencies = [
 
 [[package]]
 name = "smpl-rs"
-version = "0.5.6"
+version = "0.6.0"
 dependencies = [
  "bytemuck_derive",
  "smpl-core",
@@ -4749,7 +4767,7 @@ dependencies = [
 
 [[package]]
 name = "smpl-utils"
-version = "0.5.6"
+version = "0.6.0"
 dependencies = [
  "bytemuck",
  "bytemuck_derive",
@@ -4837,7 +4855,7 @@ dependencies = [
 
 [[package]]
 name = "smpl_py"
-version = "0.5.6"
+version = "0.6.0"
 dependencies = [
  "burn",
  "gloss-hecs",

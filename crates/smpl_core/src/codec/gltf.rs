@@ -350,6 +350,8 @@ impl GltfCodec {
                 for mut row in joint_translations.axis_iter_mut(Axis(0)) {
                     row -= &offset_nd;
                 }
+                self.per_body_data[body_idx].positions = Some(positions.clone());
+                self.per_body_data[body_idx].default_joint_translations = Some(joint_translations.clone());
                 current_body.positions = Some(positions.clone());
                 current_body.default_joint_translations = Some(joint_translations.clone());
             }
@@ -391,17 +393,34 @@ impl GltfCodec {
                 joint_weight.row_iter(),
             ) {
                 let jw_sum = joint_weight.iter().sum::<f32>();
+                let indices = [
+                    if joint_weight[0] > 0.0 {
+                        joint_index[0] + u32::try_from(num_extra_joints).unwrap()
+                    } else {
+                        0
+                    },
+                    if joint_weight[1] > 0.0 {
+                        joint_index[1] + u32::try_from(num_extra_joints).unwrap()
+                    } else {
+                        0
+                    },
+                    if joint_weight[2] > 0.0 {
+                        joint_index[2] + u32::try_from(num_extra_joints).unwrap()
+                    } else {
+                        0
+                    },
+                    if joint_weight[3] > 0.0 {
+                        joint_index[3] + u32::try_from(num_extra_joints).unwrap()
+                    } else {
+                        0
+                    },
+                ]
+                .map(|idx| u16::try_from(idx).expect("Could not convert to u16!"));
                 vertex_attributes_array.push(Vertex {
                     position: Vector3f::new(position[0], position[1], position[2]).into(),
                     normal: Vector3f::new(normal[0], normal[1], normal[2]).into(),
                     uv: Vector2f::new(uv[0], 1.0 - uv[1]).into(),
-                    joint_index: Vector4s::new(
-                        u16::try_from(joint_index[0] + u32::try_from(num_extra_joints).unwrap()).expect("Could not convert to u16!"),
-                        u16::try_from(joint_index[1] + u32::try_from(num_extra_joints).unwrap()).expect("Could not convert to u16!"),
-                        u16::try_from(joint_index[2] + u32::try_from(num_extra_joints).unwrap()).expect("Could not convert to u16!"),
-                        u16::try_from(joint_index[3] + u32::try_from(num_extra_joints).unwrap()).expect("Could not convert to u16!"),
-                    )
-                    .into(),
+                    joint_index: Vector4s::new(indices[0], indices[1], indices[2], indices[3]).into(),
                     joint_weight: Vector4f::new(
                         joint_weight[0] / jw_sum,
                         joint_weight[1] / jw_sum,
@@ -1060,7 +1079,8 @@ impl GltfCodec {
                 self.create_animation_accessors(joint_count, current_buffer_view_offset, per_view_running_offset, compatibility_mode);
             accessors.extend(animation_accessors);
             if self.num_morph_targets() > 0 && body_idx == 0 {
-                let morph_target_accessors = self.create_morph_target_accessors(vertex_count, current_buffer_view_offset, per_view_running_offset);
+                let morph_target_accessors =
+                    self.create_morph_target_accessors(vertex_count, current_buffer_view_offset, per_view_running_offset, compatibility_mode);
                 accessors.extend(morph_target_accessors);
             }
         }
@@ -1208,16 +1228,22 @@ impl GltfCodec {
         vertex_count: usize,
         current_buffer_view_offset: u32,
         per_view_running_offset: &mut [usize; 6],
+        compatibility_mode: GltfCompatibilityMode,
     ) -> Vec<gltf_json::Accessor> {
         let mut morph_target_accessors: Vec<gltf_json::Accessor> = vec![];
         let mut running_buffer_view = u32::try_from(per_view_running_offset[BufferViewIDs::Animation as usize]).expect("Could not convert to U32!")
             + current_buffer_view_offset;
+        let num_pose_morph_targets = self.num_morph_targets() - 1;
         for morph_target_idx in 0..self.num_morph_targets() {
             let accessor_name = format!("morph_{morph_target_idx}_accessor");
             let current_morph_target = self.morph_targets.as_ref().unwrap().slice(s![morph_target_idx, .., ..]);
             let current_morph_target_na = current_morph_target.to_owned().clone().into_nalgebra();
             let (min, max) = Geom::get_bounding_points(&current_morph_target_na, None);
-            let (min_vec, max_vec): (Vec<f32>, Vec<f32>) = (min.iter().copied().collect(), max.iter().copied().collect());
+            let (mut min_vec, mut max_vec): (Vec<f32>, Vec<f32>) = (min.iter().copied().collect(), max.iter().copied().collect());
+            if compatibility_mode == GltfCompatibilityMode::Smpl && (morph_target_idx < num_pose_morph_targets) {
+                max_vec = max_vec.iter().map(|x| x * 2.0 * PI).collect();
+                min_vec = min_vec.iter().map(|x| x * 2.0 * PI).collect();
+            }
             let morph_target_accessor = gltf_json::Accessor {
                 buffer_view: Some(gltf_json::Index::new(running_buffer_view)),
                 byte_offset: Some(USize64::from(per_view_running_offset[BufferViewIDs::Deformation as usize])),
