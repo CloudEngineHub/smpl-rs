@@ -90,9 +90,7 @@ where
 {
     let now = wasm_timer::Instant::now();
     let mut gltf_codec = GltfCodec::default();
-    let scene_anim = scene.get_resource::<&SceneAnimation>().unwrap();
-    let nr_frames = scene_anim.num_frames;
-    let fps = scene_anim.config.fps;
+    let mut nr_frames = 0;
     if export_camera {
         let mut cameras_query = scene.world.query::<&CameraTrack>();
         for (_, camera_track) in cameras_query.iter() {
@@ -216,6 +214,9 @@ where
         }
         #[allow(clippy::cast_precision_loss)]
         if scene.world.has::<Animation>(entity).unwrap() {
+            let scene_anim = scene.get_resource::<&SceneAnimation>().unwrap();
+            nr_frames = scene_anim.num_frames;
+            let fps = scene_anim.config.fps;
             info!("Processing Animation for body {:?}", body_idx);
             let anim = scene.get_comp::<&Animation>(&entity).unwrap();
             gltf_codec.frame_count = Some(nr_frames);

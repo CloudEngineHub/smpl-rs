@@ -29,6 +29,7 @@ use gloss_utils::{
 };
 use log::{info, warn};
 use nalgebra::{self as na};
+use smpl_core::codec::scene::CameraTrack;
 use smpl_core::common::animation::AnimationConfig;
 use smpl_core::common::smpl_model::{SmplCache, SmplModel};
 use smpl_core::common::types::{GltfOutputType, UpAxis};
@@ -91,13 +92,25 @@ pub extern "C" fn smpl_auto_add_scene(scene: &mut Scene, _runner: &mut RunnerSta
         let num_ents: usize;
         {
             let mut query_state = scene.world.query::<&Animation>().with::<&Renderable>();
-            num_ents = query_state.iter().len();
+            let num_smpl_ents = query_state.iter().len();
             for (_, smpl_anim) in query_state.iter() {
                 let last_frame_idx = smpl_anim.num_animation_frames() + smpl_anim.start_offset;
                 selected_num_frames = selected_num_frames.max(last_frame_idx);
                 selected_fps = selected_fps.min(smpl_anim.config.fps);
                 anim_config = smpl_anim.config.clone();
             }
+            let mut camera_query_state = scene.world.query::<&CameraTrack>();
+            let num_cam_ents = camera_query_state.iter().len();
+            for (_, camera_track) in camera_query_state.iter() {
+                if let Some(translations) = camera_track.per_frame_translations.as_ref() {
+                    let last_frame_idx = translations.nrows();
+                    selected_num_frames = selected_num_frames.max(last_frame_idx);
+                    if num_smpl_ents == 0 {
+                        selected_fps = 60.0;
+                    }
+                }
+            }
+            num_ents = num_smpl_ents + num_cam_ents;
         }
         let scene_anim = match num_ents {
             0 => None,

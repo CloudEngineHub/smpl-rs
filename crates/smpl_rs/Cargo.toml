@@ -21,6 +21,7 @@ smpl-core.workspace = true
 smpl-gloss-integration.workspace = true
 smpl-utils.workspace = true
 bytemuck_derive.workspace=true
+backtrace.workspace=true
 
 [lib]
 crate-type = ["rlib"]

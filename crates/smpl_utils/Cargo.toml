@@ -21,6 +21,7 @@ nalgebra.workspace=true
 bytemuck.workspace=true
 bytemuck_derive.workspace=true
 gloss-utils.workspace=true
+backtrace.workspace=true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"

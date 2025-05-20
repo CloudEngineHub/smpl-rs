@@ -11,7 +11,7 @@ members = [
 authors = ["Radu Alexandru Rosu <alex@meshcapade.com>", "Aman Shenoy <aman@meshcapade.com>"]
 edition = "2021"
 rust-version = "1.79"
-version = "0.6.0"
+version = "0.6.1"
 description = "A suite of SMPL functionality written over gloss"
 license = "MIT"
 repository = "https://github.com/Meshcapade/smpl-rs"
@@ -30,7 +30,6 @@ gloss-renderer = {version = "0.6", default-features = false}
 gloss-utils = {version = "0.6", default-features = false}
 gloss-img = {version = "0.6", default-features = false}
 gloss-hecs = {version = "0.6", default-features = false}
-
 
 # =====================================================================
 # Third-party crates
@@ -68,6 +67,8 @@ futures = "0.3"
 wasm-bindgen="=0.2.100"
 bytemuck_derive = "=1.8.1"
 crossbeam-channel = "=0.5.15"
+clap = {version = "4.5", features = ["derive"]}
+backtrace = "=0.3.74"
 
 # =====================================================================
 [profile.dev]

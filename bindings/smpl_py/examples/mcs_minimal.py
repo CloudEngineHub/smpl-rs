@@ -14,6 +14,10 @@ from smpl_rs.plugins import SmplPlugin
 from smpl_rs.types import SmplType, Gender
 from smpl_rs.components import GlossInterop
 
+from gloss.log import gloss_setup_logger as setup_logger, LogLevel
+
+setup_logger(log_level = LogLevel.Info)
+
 if __name__ == "__main__":
     viewer = Viewer()
 

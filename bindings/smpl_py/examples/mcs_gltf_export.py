@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # get paths to all the data needed for this entity
     path_data = osp.join(osp.dirname(osp.realpath(__file__)), "../../../data/smplx")
     path_data_mcs = osp.join(osp.dirname(osp.realpath(__file__)), "../../../data/mcs")
-    path_mcs = os.path.join(path_data_mcs, "boxing.mcs")
+    path_mcs = os.path.join(path_data_mcs, "football.mcs")
     assert os.path.exists(path_mcs), f"File {path_mcs} does not exist"
 
     # Follow instructions in the README to generate these .npz files
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     viewer.run_manual_plugins()
 
     # Create the writer and export as Glb
-    GLTF_SAVE_PATH = "../../saved/mesh.gltf"
+    GLTF_SAVE_PATH = "../../saved/mesh.glb"
     gltf_codec = GltfCodec.from_scene(viewer.get_scene().ptr_idx(), export_camera = True)
-    gltf_codec.save(GLTF_SAVE_PATH, GltfCompatibilityMode.Smpl)
+    gltf_codec.save(GLTF_SAVE_PATH, GltfCompatibilityMode.Unreal)
     print(f"Saved glTF to {GLTF_SAVE_PATH}")
