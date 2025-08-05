@@ -2,7 +2,7 @@ use burn::{
     prelude::Backend,
     tensor::{Float, Int, Tensor},
 };
-use gloss_renderer::geom::{Geom, PerVertexNormalsWeightingType};
+use gloss_geometry::geom::{self, PerVertexNormalsWeightingType};
 /// Component for shaped and un-posed mesh. This would be the output of the
 /// ``betas_to_verts`` system. This component is a generic over burn backend
 #[derive(Clone)]
@@ -30,7 +30,7 @@ pub struct SmplOutputDynamic<B: Backend> {
 }
 impl<B: Backend> SmplOutputDynamic<B> {
     pub fn compute_normals(&mut self) {
-        let normals = Geom::compute_per_vertex_normals_burn(&self.verts, &self.faces, &PerVertexNormalsWeightingType::Area);
+        let normals = geom::compute_per_vertex_normals_burn(&self.verts, &self.faces, &PerVertexNormalsWeightingType::Area);
         self.normals = Some(normals);
     }
 }

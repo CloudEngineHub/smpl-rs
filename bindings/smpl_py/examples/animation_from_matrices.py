@@ -6,7 +6,7 @@ Load a smpl animation from npz files
 import os
 import numpy as np
 
-from gloss import Entity, Viewer
+from gloss import Viewer
 from gloss.log import gloss_setup_logger as setup_logger, LogLevel
 
 from smpl_rs import SmplCache
@@ -16,19 +16,21 @@ from smpl_rs.components import SmplParams, Betas, Animation, GlossInterop
 
 # Set up the logger
 # To be called only once per process. Can select between Off, Error, Warn, Info, Debug, Trace
-setup_logger(log_level = LogLevel.Info)
+setup_logger(log_level=LogLevel.Info)
 
 if __name__ == "__main__":
     viewer = Viewer()
 
-    smpl_body = viewer.get_or_create_entity(name = "smpl_body")
+    smpl_body = viewer.get_or_create_entity(name="smpl_body")
 
     # Get paths to all the data needed for this entity
-    path_data=os.path.join( os.path.dirname( os.path.realpath(__file__) ),"../../../data/smplx")
-    path_anim=os.path.join(path_data,"apose_to_00093lazysaturdaynightfever.npz")
-    path_model_neutral=os.path.join(path_data,"SMPLX_neutral_array_f32_slim.npz")
-    path_model_male=os.path.join(path_data,"SMPLX_male_array_f32_slim.npz")
-    path_model_female=os.path.join(path_data,"SMPLX_female_array_f32_slim.npz")
+    path_data = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "../../../data/smplx"
+    )
+    path_anim = os.path.join(path_data, "apose_to_00093lazysaturdaynightfever.npz")
+    path_model_neutral = os.path.join(path_data, "SMPLX_neutral_array_f32_slim.npz")
+    path_model_male = os.path.join(path_data, "SMPLX_male_array_f32_slim.npz")
+    path_model_female = os.path.join(path_data, "SMPLX_female_array_f32_slim.npz")
 
     animation_npz = np.load(path_anim)
     poses = animation_npz["poses"].astype(np.float32)
@@ -37,8 +39,9 @@ if __name__ == "__main__":
     # Insert the needed components
     smpl_params = SmplParams(SmplType.SmplX, Gender.Female, enable_pose_corrective=True)
     betas = Betas.default()
-    animation = Animation.from_matrices(poses, trans, None, 100.0,
-                                        up_axis=UpAxis.Y, smpl_type=SmplType.SmplH)
+    animation = Animation.from_matrices(
+        poses, trans, None, 100.0, up_axis=UpAxis.Y, smpl_type=SmplType.SmplH
+    )
     interop = GlossInterop(with_uv=False)
 
     smpl_body.insert(smpl_params)

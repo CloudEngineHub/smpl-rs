@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-An example on how to load an MCS file into a scene and 
+An example on how to load an MCS file into a scene and
 export it as a gltf file (with or without camera)
 """
 
@@ -56,6 +56,6 @@ if __name__ == "__main__":
 
     # Create the writer and export as Glb
     GLTF_SAVE_PATH = "../../saved/mesh.glb"
-    gltf_codec = GltfCodec.from_scene(viewer.get_scene().ptr_idx(), export_camera = True)
+    gltf_codec = GltfCodec.from_scene(viewer.get_scene().ptr_idx(), export_camera=True)
     gltf_codec.save(GLTF_SAVE_PATH, GltfCompatibilityMode.Unreal)
     print(f"Saved glTF to {GLTF_SAVE_PATH}")

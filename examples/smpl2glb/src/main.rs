@@ -6,7 +6,7 @@ use smpl_core::codec::gltf::GltfCodec;
 use smpl_core::codec::scene::McsCodec;
 use smpl_core::common::animation::{AnimWrap, AnimationConfig};
 use smpl_core::common::smpl_options::SmplOptions;
-use smpl_core::common::types::{GltfCompatibilityMode, GltfOutputType};
+use smpl_core::common::types::{FaceType, GltfCompatibilityMode, GltfOutputType};
 use smpl_core::common::{
     betas::Betas,
     smpl_model::SmplCacheDynamic,
@@ -122,5 +122,6 @@ fn main() {
         output_path.to_str().unwrap(),
         GltfOutputType::Binary,
         compatibility_mode,
+        FaceType::SmplX,
     );
 }

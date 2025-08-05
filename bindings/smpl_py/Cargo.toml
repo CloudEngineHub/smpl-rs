@@ -21,7 +21,7 @@ extension-module = ["pyo3/extension-module"]
 
 [dependencies]
 smpl-core = {workspace= true, default-features = false}
-smpl-gloss-integration = {workspace= true, default-features = false}
+smpl-gloss-integration = {workspace= true, default-features = true}
 smpl-utils = {workspace= true, default-features = false}
 gloss_py_macros = {workspace= true, default-features = true}
 gloss-renderer = {workspace= true, default-features = true}

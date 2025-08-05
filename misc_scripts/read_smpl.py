@@ -1,9 +1,9 @@
-# THis is a script to see the contents of a `.smpl` file 
+# THis is a script to see the contents of a `.smpl` file
 
 import numpy as np
 
 # Load the npz file
-data = np.load('data/camera.smpl')
+data = np.load("data/smplx/red_shirt_guy.smpl")
 # data = np.load('Dance_03_w_hands.smpl')
 # data = np.load('avatar_face_expression.smpl')
 

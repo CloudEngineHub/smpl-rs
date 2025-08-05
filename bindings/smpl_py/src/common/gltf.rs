@@ -1,4 +1,5 @@
 use super::types::PyGltfCompatibilityMode;
+use crate::common::types::PyFaceType;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
@@ -29,24 +30,22 @@ impl PyGltfCodec {
             inner: GltfCodec::from_scene(scene, None, export_camera),
         }
     }
-    #[pyo3(signature = (path, compatibility_mode = None))]
-    #[pyo3(text_signature = "($self, path: str, compatibility_mode: Optional[GltfCompatibilityMode] = None) -> None")]
-    fn save(&mut self, path: &str, compatibility_mode: Option<PyGltfCompatibilityMode>) {
-        let output_type = if std::path::Path::new(path)
-            .extension()
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("gltf"))
-        {
+    #[pyo3(signature = (path, compatibility_mode = None, out_face_type = None))]
+    #[pyo3(
+        text_signature = "($self, path: str, compatibility_mode: Optional[GltfCompatibilityMode] = None, out_face_type: Optional[FaceType] = None) -> None"
+    )]
+    fn save(&mut self, path: &str, compatibility_mode: Option<PyGltfCompatibilityMode>, out_face_type: Option<PyFaceType>) {
+        let output_type = if std::path::Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("gltf")) {
             GltfOutputType::Standard
-        } else if std::path::Path::new(path)
-            .extension()
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("glb"))
-        {
+        } else if std::path::Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("glb")) {
             GltfOutputType::Binary
         } else {
             panic!("Unsupported file extension. Use `.gltf` or `.glb`.");
         };
         let compatibility_mode = compatibility_mode.unwrap_or(PyGltfCompatibilityMode::Smpl);
-        self.inner.to_file("Meshcapade Avatar", path, output_type, compatibility_mode.into());
+        let face_mode = out_face_type.unwrap_or(PyFaceType::SmplX);
+        self.inner
+            .to_file("Meshcapade Avatar", path, output_type, compatibility_mode.into(), face_mode.into());
         info!("Saved glTF to {}", path);
     }
 }

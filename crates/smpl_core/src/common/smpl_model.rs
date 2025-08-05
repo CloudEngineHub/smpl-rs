@@ -17,6 +17,15 @@ use enum_map::EnumMap;
 use gloss_utils::tensor::BurnBackend;
 use ndarray as nd;
 use std::any::Any;
+pub trait FaceModel<B: Backend>: Send + Sync + 'static + Any + DynClone {
+    fn expression2offsets(&self, expression: &Expression) -> Tensor<B, 2, Float>;
+}
+impl<B: Backend> Clone for Box<dyn FaceModel<B>> {
+    #[allow(unconditional_recursion)]
+    fn clone(&self) -> Box<dyn FaceModel<B>> {
+        self.clone()
+    }
+}
 /// Trait for a Smpl based model. Smpl-rs expects all Smpl models to implement
 /// this.
 pub trait SmplModel<B: Backend>: Send + Sync + 'static + Any + DynClone {
@@ -24,7 +33,7 @@ pub trait SmplModel<B: Backend>: Send + Sync + 'static + Any + DynClone {
     fn gender(&self) -> Gender;
     fn forward(&self, options: &SmplOptions, betas: &Betas, pose_raw: &Pose, expression: Option<&Expression>) -> SmplOutputDynamic<B>;
     fn create_body_with_uv(&self, smpl_output: &SmplOutputDynamic<B>) -> SmplOutputDynamic<B>;
-    fn expression2offsets(&self, expression: &Expression) -> Tensor<B, 2, Float>;
+    fn get_face_model(&self) -> &dyn FaceModel<B>;
     fn betas2verts(&self, betas: &Betas) -> Tensor<B, 2, Float>;
     fn verts2joints(&self, verts_t_pose: Tensor<B, 2, Float>) -> Tensor<B, 2, Float>;
     fn compute_pose_correctives(&self, pose: &Pose) -> Tensor<B, 2, Float>;
@@ -176,7 +185,7 @@ pub struct SmplCache<B: Backend> {
     type_to_path: EnumMap<SmplType, Gender2Path>,
 }
 impl<B: Backend> SmplCache<B> {
-    pub fn add_model<T: SmplModel<B>>(&mut self, model: T, cache_models: bool) {
+    pub fn add_model<T: SmplModel<B> + FaceModel<B>>(&mut self, model: T, cache_models: bool) {
         let smpl_type = model.smpl_type();
         let gender = model.gender();
         if !cache_models {
@@ -196,6 +205,11 @@ impl<B: Backend> SmplCache<B> {
         let opt = &self.type_to_model[smpl_type].gender_to_model[gender];
         let model = opt.as_ref().map(|x| x.as_ref());
         model
+    }
+    #[allow(clippy::redundant_closure_for_method_calls)]
+    pub fn get_face_model_ref(&self, smpl_type: SmplType, gender: Gender) -> Option<&dyn FaceModel<B>> {
+        let opt = &self.type_to_model[smpl_type].gender_to_model[gender];
+        opt.as_ref().map(|model| model.get_face_model())
     }
     #[allow(clippy::redundant_closure_for_method_calls)]
     pub fn get_model_mut(&mut self, smpl_type: SmplType, gender: Gender) -> Option<&mut dyn SmplModel<B>> {

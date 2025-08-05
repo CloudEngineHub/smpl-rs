@@ -23,8 +23,14 @@ use smpl_core::{
 use smpl_core::{
     codec::{gltf::PerBodyData, scene::CameraTrack},
     common::{
-        animation::Animation, betas::Betas, expression::Expression, pose_override::PoseOverride, pose_retarget::RetargetPoseYShift,
-        smpl_model::SmplCacheDynamic, smpl_options::SmplOptions, types::UpAxis,
+        animation::Animation,
+        betas::Betas,
+        expression::Expression,
+        pose_override::PoseOverride,
+        pose_retarget::RetargetPoseYShift,
+        smpl_model::SmplCacheDynamic,
+        smpl_options::SmplOptions,
+        types::{FaceType, UpAxis},
     },
 };
 use smpl_utils::array::{Gather2D, Gather3D};
@@ -55,18 +61,18 @@ impl GltfCodecGloss for GltfCodec {
     fn from_scene(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool) -> GltfCodec {
         let smpl_models = scene.get_resource::<&SmplCacheDynamic>().unwrap();
         match &*smpl_models {
-            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, &None, export_camera),
-            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, &None, export_camera),
-            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, &None, export_camera),
+            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, None, export_camera),
+            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, None, export_camera),
+            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, None, export_camera),
         }
     }
     /// Get a ``GltfCodec`` from the scene
     fn from_entities(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool, entities: Vec<String>) -> GltfCodec {
         let smpl_models = scene.get_resource::<&SmplCacheDynamic>().unwrap();
         match &*smpl_models {
-            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, &Some(entities), export_camera),
-            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, &Some(entities), export_camera),
-            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, &Some(entities), export_camera),
+            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, Some(&entities), export_camera),
+            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, Some(&entities), export_camera),
+            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, Some(&entities), export_camera),
         }
     }
 }
@@ -78,7 +84,7 @@ fn from_scene_on_backend<B: Backend>(
     scene: &Scene,
     smpl_models: &SmplCache<B>,
     max_texture_size: Option<u32>,
-    entities: &Option<Vec<String>>,
+    entities: Option<&Vec<String>>,
     export_camera: bool,
 ) -> GltfCodec
 where
@@ -102,6 +108,7 @@ where
     gltf_codec.num_bodies = num_bodies;
     let mut should_export_posedirs = false;
     let mut should_export_exprdirs = false;
+
     let mut num_expression_blend_shapes = 0;
     for (entity, (smpl_params, _name)) in query.iter() {
         if scene.world.has::<Animation>(entity).unwrap() && smpl_params.enable_pose_corrective {
@@ -115,6 +122,7 @@ where
             }
         }
     }
+
     for (body_idx, (entity, (smpl_params, name))) in query.iter().enumerate() {
         if let Some(entities) = entities {
             if !entities.contains(&name.0) {
@@ -130,7 +138,7 @@ where
             panic!("Betas component does not exist!");
         };
         let default_pose = Pose::new_empty(UpAxis::Y, smpl_params.smpl_type);
-        let default_expression = Expression::new_empty(10);
+        let default_expression = Expression::new_empty(10, FaceType::SmplX);
         let mut smpl_output = smpl_model.forward(&SmplOptions::default(), &betas, &default_pose, Some(&default_expression));
         smpl_output.compute_normals();
         smpl_output = smpl_model.create_body_with_uv(&smpl_output);
@@ -140,7 +148,7 @@ where
             num_total_blendshapes += metadata.num_pose_blend_shapes + 1;
         }
         if should_export_exprdirs {
-            num_total_blendshapes += num_expression_blend_shapes;
+            num_total_blendshapes += num_expression_blend_shapes + 1;
         }
         gltf_codec.smpl_type = smpl_version;
         gltf_codec.gender = gender;
@@ -268,6 +276,7 @@ where
                 #[allow(unused_assignments)]
                 if should_export_exprdirs {
                     if let Some(expr_dirs) = smpl_model.get_expression_dirs() {
+                        let mut expression_morph_targets = nd::Array3::<f32>::zeros((num_expression_blend_shapes + 1, vertex_count, 3));
                         let nr_elem_merged = expr_dirs.dims()[0] / 3;
                         let expression_dirs_merged = expr_dirs
                             .to_ndarray()
@@ -275,21 +284,32 @@ where
                             .unwrap();
                         let mapping = smpl_model.idx_split_2_merged_vec();
                         let cols = vec![0, 1, 2];
-                        let depth = (0..metadata.expression_space_dim).collect::<Vec<_>>().into_boxed_slice();
+                        let depth = (0..num_expression_blend_shapes).collect::<Vec<_>>().into_boxed_slice();
                         let expression_dirs_split = expression_dirs_merged
                             .gather(mapping, &cols, &depth)
                             .into_shape_with_order((vertex_count, 3, num_expression_blend_shapes))
                             .unwrap()
                             .permuted_axes([2, 0, 1]);
+                        let expression_bounds = nd::Array1::<f32>::from_elem(num_expression_blend_shapes, -7.0);
+                        let expression_bounds_array = expression_bounds.insert_axis(nd::Axis(1)).insert_axis(nd::Axis(2));
+                        assert_eq!(expression_dirs_split.shape()[0], expression_bounds_array.len());
+                        let template_offset = (expression_dirs_split.clone() * &expression_bounds_array).sum_axis(nd::Axis(0));
+                        expression_morph_targets
+                            .slice_mut(s![0..num_expression_blend_shapes, .., ..])
+                            .assign(&(expression_dirs_split));
+                        expression_morph_targets
+                            .slice_mut(s![num_expression_blend_shapes, .., ..])
+                            .assign(&template_offset);
+                        #[allow(clippy::range_plus_one)]
                         full_morph_targets
                             .slice_mut(s![
-                                running_idx_morph_target..running_idx_morph_target + num_expression_blend_shapes,
+                                running_idx_morph_target..running_idx_morph_target + num_expression_blend_shapes + 1,
                                 ..,
                                 ..
                             ])
-                            .assign(&expression_dirs_split);
-                        running_idx_morph_target += num_expression_blend_shapes;
-                        gltf_codec.num_expression_morph_targets = num_expression_blend_shapes;
+                            .assign(&expression_morph_targets);
+                        running_idx_morph_target += num_expression_blend_shapes + 1;
+                        gltf_codec.num_expression_morph_targets = num_expression_blend_shapes + 1;
                     }
                 }
                 gltf_codec.morph_targets = Some(full_morph_targets);
@@ -350,7 +370,7 @@ where
                             ])
                             .assign(&expr_coeffs);
                     }
-                    running_idx_morph_target += num_expression_blend_shapes;
+                    running_idx_morph_target += num_expression_blend_shapes + 1;
                 }
             }
             gltf_codec.keyframe_times = Some(keyframe_times);
@@ -360,6 +380,11 @@ where
             if should_export_posedirs {
                 current_per_frame_blend_weights
                     .slice_mut(s![.., metadata.num_pose_blend_shapes])
+                    .assign(&nd::Array1::<f32>::from_elem(nr_frames, 0.0));
+            }
+            if should_export_exprdirs {
+                current_per_frame_blend_weights
+                    .slice_mut(s![.., metadata.num_pose_blend_shapes + num_expression_blend_shapes + 1])
                     .assign(&nd::Array1::<f32>::from_elem(nr_frames, 0.0));
             }
             if should_export_posedirs || should_export_exprdirs {

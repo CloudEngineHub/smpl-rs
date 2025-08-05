@@ -10,6 +10,7 @@ smpl-core = { path = "../../crates/smpl_core", default-features = false  }
 smpl-gloss-integration = { path = "../../crates/smpl_gloss_integration", default-features = false  }
 smpl-utils = { path = "../../crates/smpl_utils", default-features = false  }
 gloss-renderer = {workspace= true, default-features = false}
+gloss-utils = {workspace= true, default-features = false}
 
 #third party
 egui.workspace=true
@@ -19,8 +20,8 @@ nalgebra.workspace=true
 nalgebra-glm = "0.18"
 rand = "0.8"
 enum-map = "2.6.0"
-strum = "0.25"
-strum_macros = "0.25"
+strum = "0.26.3"
+strum_macros = "0.26.3"
 pollster = "0.3"
 futures="0.3"
 ndarray.workspace=true

@@ -1,6 +1,7 @@
 #![allow(clippy::needless_pass_by_value)]
 pub mod common;
 pub mod smpl_x;
+use crate::common::types::PyFaceType;
 use common::{
     animation::{PyAnimWrap, PyAnimation},
     betas::PyBetas,
@@ -33,6 +34,7 @@ use smpl_x::{
 #[allow(clippy::missing_errors_doc)]
 pub fn extension(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     let models_module = PyModule::new_bound(_py, "models")?;
+
     let components_module = PyModule::new_bound(_py, "components")?;
     let types_module = PyModule::new_bound(_py, "types")?;
     let builders_module = PyModule::new_bound(_py, "builders")?;
@@ -94,6 +96,7 @@ fn add_submod_types(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyGltfCompatibilityMode>()?;
     m.add_class::<PyHandType>()?;
     m.add_class::<PyFollowerType>()?;
+    m.add_class::<PyFaceType>()?;
     Ok(())
 }
 #[pymodule]

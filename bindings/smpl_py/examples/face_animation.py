@@ -15,18 +15,20 @@ from smpl_rs.components import SmplParams, Betas, Animation, GlossInterop
 
 if __name__ == "__main__":
     viewer = Viewer()
-    smpl_body = viewer.get_or_create_entity(name = "smpl_body")
+    smpl_body = viewer.get_or_create_entity(name="smpl_body")
 
     # get paths to all the data needed for this entity
-    path_data=os.path.join( os.path.dirname( os.path.realpath(__file__) ),"../../../data/smplx")
-    path_anim=os.path.join(path_data,"avatar_face_expression.smpl")
-    path_model_neutral=os.path.join(path_data,"SMPLX_neutral_array_f32_slim.npz")
-    path_model_male=os.path.join(path_data,"SMPLX_male_array_f32_slim.npz")
-    path_model_female=os.path.join(path_data,"SMPLX_female_array_f32_slim.npz")
+    path_data = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "../../../data/smplx"
+    )
+    path_anim = os.path.join(path_data, "avatar_face_expression.smpl")
+    path_model_neutral = os.path.join(path_data, "SMPLX_neutral_array_f32_slim.npz")
+    path_model_male = os.path.join(path_data, "SMPLX_male_array_f32_slim.npz")
+    path_model_female = os.path.join(path_data, "SMPLX_female_array_f32_slim.npz")
 
     # insert the needed components
     smpl_params = SmplParams(SmplType.SmplX, Gender.Female, enable_pose_corrective=True)
-    betas = Betas( np.array([1, -2, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.float32) )
+    betas = Betas(np.array([1, -2, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.float32))
     animation = Animation.from_smpl_file(path_anim, wrap_behaviour=AnimWrap.Reverse)
     interop = GlossInterop(with_uv=True)
 
@@ -35,8 +37,8 @@ if __name__ == "__main__":
     smpl_body.insert(animation)
     smpl_body.insert(interop)
 
-    #insert a resource which is a component that can be shared between multiple entities
-    #this one just lazy loads all smpl models you might need
+    # insert a resource which is a component that can be shared between multiple entities
+    # this one just lazy loads all smpl models you might need
     smpl_models = SmplCache.default()
     smpl_models.set_lazy_loading(SmplType.SmplX, Gender.Neutral, path_model_neutral)
     smpl_models.set_lazy_loading(SmplType.SmplX, Gender.Male, path_model_male)

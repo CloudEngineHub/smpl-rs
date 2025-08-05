@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use smpl_core::common::types::{AngleType, Gender, GltfCompatibilityMode, SmplType, UpAxis};
+use smpl_core::common::types::{AngleType, FaceType, Gender, GltfCompatibilityMode, SmplType, UpAxis};
 use smpl_utils::{convert_enum_from, convert_enum_into};
 #[pyclass(name = "UpAxis", module = "smpl_rs.types", unsendable, eq, eq_int)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -43,3 +43,11 @@ pub enum PyGltfCompatibilityMode {
 }
 convert_enum_from!(PyGltfCompatibilityMode, GltfCompatibilityMode, Smpl, Unreal,);
 convert_enum_into!(GltfCompatibilityMode, PyGltfCompatibilityMode, Smpl, Unreal,);
+#[pyclass(name = "FaceType", module = "smpl_rs.types", unsendable, eq, eq_int)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PyFaceType {
+    SmplX = 0,
+    ARKit,
+}
+convert_enum_from!(PyFaceType, FaceType, SmplX, ARKit,);
+convert_enum_into!(FaceType, PyFaceType, SmplX, ARKit,);

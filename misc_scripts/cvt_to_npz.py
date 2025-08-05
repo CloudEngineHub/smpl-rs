@@ -1,4 +1,4 @@
-# This is a simple script to convert the `pkl` data files to `npz`  
+# This is a simple script to convert the `pkl` data files to `npz`
 import pickle
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -26,7 +26,7 @@ with Progress() as progress:
         else:
             # For other data types, store them as they are
             dense_data[key] = value
-        
+
         progress.update(task, advance=1)
 
 np.savez_compressed(npz_file_path, **dense_data)

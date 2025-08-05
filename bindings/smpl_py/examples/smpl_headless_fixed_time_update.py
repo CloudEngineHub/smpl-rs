@@ -6,7 +6,6 @@ This can be useful when rendering the animation to mp4s in which case you would
 want to advance the animation 33ms everytime you render.
 """
 import os
-import numpy as np
 
 from gloss import ViewerHeadless
 from gloss.log import gloss_setup_logger as setup_logger, LogLevel

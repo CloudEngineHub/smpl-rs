@@ -4,10 +4,9 @@ Gets vertex info from a .smpl file and visualise it side by side with the mesh
 """
 
 import os
-import numpy as np
 
 from gloss import Viewer
-from gloss.components import Verts, Normals
+from gloss.components import Verts
 
 from smpl_rs import SmplCache
 from smpl_rs.codec import SmplCodec
@@ -17,25 +16,27 @@ from smpl_rs.components import GlossInterop, Animation
 
 if __name__ == "__main__":
     viewer = Viewer()
-    smpl_body = viewer.get_or_create_entity(name = "smpl_body")
+    smpl_body = viewer.get_or_create_entity(name="smpl_body")
 
     # get paths to all the data needed for this entity
-    path_data=os.path.join( os.path.dirname( os.path.realpath(__file__) ),"../../../data/smplx")
-    path_smpl=os.path.join(path_data,"squat_ow.smpl")
+    path_data = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "../../../data/smplx"
+    )
+    path_smpl = os.path.join(path_data, "squat_ow.smpl")
     assert os.path.exists(path_smpl), "File does not exist"
 
     # Follow instructions in the README to generate these .npz files
-    path_model_neutral=os.path.join(path_data,"SMPLX_neutral_array_f32_slim.npz")
-    path_model_male=os.path.join(path_data,"SMPLX_male_array_f32_slim.npz")
-    path_model_female=os.path.join(path_data,"SMPLX_female_array_f32_slim.npz")
+    path_model_neutral = os.path.join(path_data, "SMPLX_neutral_array_f32_slim.npz")
+    path_model_male = os.path.join(path_data, "SMPLX_male_array_f32_slim.npz")
+    path_model_female = os.path.join(path_data, "SMPLX_female_array_f32_slim.npz")
 
     # insert the needed components
     smpl_codec = SmplCodec.from_file(path_smpl)
     smpl_body.insert(smpl_codec.to_entity_builder())
     interop = GlossInterop(with_uv=True)
     smpl_body.insert(interop)
-    #insert a resource which is a component that can be shared between multiple entities
-    #this one just lazy loads all smpl models you might need
+    # insert a resource which is a component that can be shared between multiple entities
+    # this one just lazy loads all smpl models you might need
     smpl_models = SmplCache.default()
     smpl_models.set_lazy_loading(SmplType.SmplX, Gender.Neutral, path_model_neutral)
     smpl_models.set_lazy_loading(SmplType.SmplX, Gender.Male, path_model_male)
@@ -58,7 +59,7 @@ if __name__ == "__main__":
         viewer.update()
 
         # Get vertices from the SMPL body
-        verts = smpl_body.get(Verts) # this gets the vertices of the current pose
+        verts = smpl_body.get(Verts)  # this gets the vertices of the current pose
 
         # Here we visualise the mesh side by side with its corresponding point cloud
         # which we got from the vertices of the current pose

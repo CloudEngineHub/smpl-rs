@@ -2,12 +2,12 @@ use super::scene::CameraTrack;
 use crate::{
     common::{
         pose::Pose,
-        types::{ChunkHeader, GltfCompatibilityMode, GltfOutputType, SmplType},
+        types::{ChunkHeader, FaceType, GltfCompatibilityMode, GltfOutputType, SmplType},
     },
     smpl_x::smpl_x,
 };
+use gloss_geometry::geom;
 use gloss_img::dynamic_image::DynImage;
-use gloss_renderer::geom::Geom;
 use gloss_utils::nshare::ToNalgebra;
 use gltf::binary::Header;
 use gltf_json::validation::{Checked::Valid, USize64};
@@ -145,7 +145,7 @@ impl Default for GltfCodec {
 }
 impl GltfCodec {
     /// Export ``GltfCodec`` to a file (as a ``.gltf`` or ``.glb``)
-    pub fn to_file(&mut self, name: &str, path: &str, out_type: GltfOutputType, compatibility_mode: GltfCompatibilityMode) {
+    pub fn to_file(&mut self, name: &str, path: &str, out_type: GltfOutputType, compatibility_mode: GltfCompatibilityMode, face_type: FaceType) {
         let parent_path = Path::new(path).parent();
         let file_name = Path::new(path).file_name();
         let Some(parent_path) = parent_path else {
@@ -164,7 +164,7 @@ impl GltfCodec {
         let file_name_with_suffix = Path::new(file_name).with_extension(target_extension);
         log!("Exporting GLTF: {}/{}", path, file_name_with_suffix.to_string_lossy());
         let binary = matches!(out_type, GltfOutputType::Binary);
-        let (buffer_data, root) = self.create_buffer(name, binary, compatibility_mode);
+        let (buffer_data, root) = self.create_buffer(name, binary, compatibility_mode, face_type);
         match out_type {
             GltfOutputType::Standard => {
                 let json_path = parent_path.join(file_name_with_suffix.clone());
@@ -199,8 +199,8 @@ impl GltfCodec {
         }
     }
     /// Get the ``GltfCodec`` as a u8 buffer
-    pub fn to_buf(&mut self, compatibility_mode: GltfCompatibilityMode) -> Vec<u8> {
-        let (buffer_data, root) = self.create_buffer("Meshcapade Avatar", true, compatibility_mode);
+    pub fn to_buf(&mut self, compatibility_mode: GltfCompatibilityMode, face_type: FaceType) -> Vec<u8> {
+        let (buffer_data, root) = self.create_buffer("Meshcapade Avatar", true, compatibility_mode, face_type);
         let json_string = gltf_json::serialize::to_string(&root).expect("Serialization error");
         let mut length = mem::size_of::<Header>() + mem::size_of::<ChunkHeader>() + json_string.len();
         align_to_multiple_of_four(&mut length);
@@ -224,7 +224,13 @@ impl GltfCodec {
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    fn create_buffer(&mut self, name: &str, binary: bool, compatibility_mode: GltfCompatibilityMode) -> (Vec<u8>, gltf_json::Root) {
+    fn create_buffer(
+        &mut self,
+        name: &str,
+        binary: bool,
+        compatibility_mode: GltfCompatibilityMode,
+        face_type: FaceType,
+    ) -> (Vec<u8>, gltf_json::Root) {
         assert!(self.faces.is_some(), "GltfCodec: no faces!");
         assert!(self.uvs.is_some(), "GltfCodec: no uvs!");
         let mut full_buffer_data = vec![];
@@ -284,9 +290,10 @@ impl GltfCodec {
             nodes: node_indices,
         };
         let scenes = vec![scene];
-        for (body_idx, current_body) in self.per_body_data.clone().iter_mut().enumerate() {
+        for body_idx in 0..self.per_body_data.len() {
+            let mut current_body = self.per_body_data[body_idx].clone();
             if compatibility_mode == GltfCompatibilityMode::Smpl && self.num_pose_morph_targets > 0 {
-                let num_pose_morph_targets = self.num_pose_morph_targets - 1;
+                let num_pose_morph_targets = self.num_pose_morph_targets.saturating_sub(1);
                 current_body
                     .per_frame_blend_weights
                     .as_mut()
@@ -300,24 +307,29 @@ impl GltfCodec {
                     .slice_mut(s![.., num_pose_morph_targets])
                     .assign(&nd::Array1::<f32>::from_elem(self.frame_count.unwrap(), 1.0));
             }
-            if compatibility_mode == GltfCompatibilityMode::Unreal && self.num_pose_morph_targets > 0 {
-                let remap = [0, 2, 1, 6, 8, 7, 3, 5, 4];
-                let num_pose_morph_targets = self.num_pose_morph_targets - 1;
-                let morph_weights = current_body.per_frame_blend_weights.as_mut().unwrap();
-                let mut remapped_weights = morph_weights.clone();
-                for chunk in (0..num_pose_morph_targets).step_by(9) {
-                    for (i, &old_idx) in remap.iter().enumerate() {
-                        remapped_weights
-                            .slice_mut(s![.., chunk + i])
-                            .assign(&morph_weights.slice(s![.., chunk + old_idx]));
-                    }
-                }
-                current_body.per_frame_blend_weights = Some(remapped_weights);
+            if face_type == FaceType::SmplX && self.num_expression_morph_targets > 0 {
+                let num_expression_morph_targets = self.num_expression_morph_targets.saturating_sub(1);
+                current_body
+                    .per_frame_blend_weights
+                    .as_mut()
+                    .unwrap()
+                    .slice_mut(s![
+                        ..,
+                        self.num_pose_morph_targets..self.num_pose_morph_targets + num_expression_morph_targets
+                    ])
+                    .mapv_inplace(|elem| (elem + 7.0) / (2.0 * 7.0));
+                current_body
+                    .per_frame_blend_weights
+                    .as_mut()
+                    .unwrap()
+                    .slice_mut(s![.., self.num_pose_morph_targets + num_expression_morph_targets])
+                    .assign(&nd::Array1::<f32>::from_elem(self.frame_count.unwrap(), 1.0));
             }
+
             assert!(current_body.positions.is_some(), "GltfCodec: no vertices for body {body_idx}!");
             assert!(current_body.normals.is_some(), "GltfCodec: no normals for body {body_idx}!");
             let mut positions = current_body.positions.clone().unwrap();
-            let normals = current_body.normals.as_ref().unwrap();
+            let normals = current_body.normals.clone().unwrap();
             let faces = self.faces.as_ref().unwrap();
             let uvs = self.uvs.as_ref().unwrap();
             let joint_index = self.joint_index.as_ref().unwrap();
@@ -338,7 +350,7 @@ impl GltfCodec {
             let joint_rotations = batch_rodrigues(self.default_joint_poses.as_ref().unwrap());
             let mut joint_translations = current_body.default_joint_translations.clone().unwrap();
             if compatibility_mode == GltfCompatibilityMode::Unreal {
-                let (min, _) = Geom::get_bounding_points(&positions, None);
+                let (min, _) = geom::get_bounding_points(&positions, None);
                 let min_vec: Vec<f32> = min.iter().copied().collect();
                 let min_y = min_vec[1];
                 let offset = na::RowVector3::new(0.0, min_y, 0.0);
@@ -350,8 +362,6 @@ impl GltfCodec {
                 for mut row in joint_translations.axis_iter_mut(Axis(0)) {
                     row -= &offset_nd;
                 }
-                self.per_body_data[body_idx].positions = Some(positions.clone());
-                self.per_body_data[body_idx].default_joint_translations = Some(joint_translations.clone());
                 current_body.positions = Some(positions.clone());
                 current_body.default_joint_translations = Some(joint_translations.clone());
             }
@@ -575,7 +585,7 @@ impl GltfCodec {
             );
             let (buffer_data, composed_buffer_views) = self.compose_buffer_views(
                 body_idx,
-                current_body,
+                &current_body,
                 current_buffer_views.clone(),
                 index_data.as_slice(),
                 vertex_data.as_slice(),
@@ -670,7 +680,7 @@ impl GltfCodec {
             }
             let skeleton_root_index = self.add_skin(
                 format!("Skin_{body_idx}"),
-                body_idx,
+                &current_body,
                 armature_node_index,
                 current_accessor_offset,
                 &mut nodes,
@@ -956,7 +966,7 @@ impl GltfCodec {
         num_extra_joints: usize,
         compatibility_mode: GltfCompatibilityMode,
     ) -> Vec<gltf_json::Accessor> {
-        let (min, max) = Geom::get_bounding_points(self.per_body_data[body_idx].positions.as_ref().unwrap(), None);
+        let (min, max) = geom::get_bounding_points(self.per_body_data[body_idx].positions.as_ref().unwrap(), None);
         let (min_vec, max_vec): (Vec<f32>, Vec<f32>) = (min.iter().copied().collect(), max.iter().copied().collect());
         let mut accessors: Vec<gltf_json::Accessor> = vec![];
         let indices = gltf_json::Accessor {
@@ -1233,16 +1243,23 @@ impl GltfCodec {
         let mut morph_target_accessors: Vec<gltf_json::Accessor> = vec![];
         let mut running_buffer_view = u32::try_from(per_view_running_offset[BufferViewIDs::Animation as usize]).expect("Could not convert to U32!")
             + current_buffer_view_offset;
-        let num_pose_morph_targets = self.num_morph_targets() - 1;
+        let num_pose_morph_targets = self.num_pose_morph_targets.saturating_sub(1);
+        let num_expression_morph_targets = self.num_expression_morph_targets.saturating_sub(1);
         for morph_target_idx in 0..self.num_morph_targets() {
             let accessor_name = format!("morph_{morph_target_idx}_accessor");
             let current_morph_target = self.morph_targets.as_ref().unwrap().slice(s![morph_target_idx, .., ..]);
             let current_morph_target_na = current_morph_target.to_owned().clone().into_nalgebra();
-            let (min, max) = Geom::get_bounding_points(&current_morph_target_na, None);
+            let (min, max) = geom::get_bounding_points(&current_morph_target_na, None);
             let (mut min_vec, mut max_vec): (Vec<f32>, Vec<f32>) = (min.iter().copied().collect(), max.iter().copied().collect());
             if compatibility_mode == GltfCompatibilityMode::Smpl && (morph_target_idx < num_pose_morph_targets) {
                 max_vec = max_vec.iter().map(|x| x * 2.0 * PI).collect();
                 min_vec = min_vec.iter().map(|x| x * 2.0 * PI).collect();
+            }
+            if compatibility_mode == GltfCompatibilityMode::Smpl
+                && (morph_target_idx > num_pose_morph_targets && morph_target_idx < self.num_pose_morph_targets + num_expression_morph_targets)
+            {
+                max_vec = max_vec.iter().map(|x| x * 2.0 * 7.0).collect();
+                min_vec = min_vec.iter().map(|x| x * 2.0 * 7.0).collect();
             }
             let morph_target_accessor = gltf_json::Accessor {
                 buffer_view: Some(gltf_json::Index::new(running_buffer_view)),
@@ -1455,12 +1472,12 @@ impl GltfCodec {
         bind_matrices
     }
     /// Function to create animation buffer data
-    pub fn create_animation_data(&self, body_idx: usize, current_body: &PerBodyData, compatibility_mode: GltfCompatibilityMode) -> Vec<u8> {
+    pub fn create_animation_data(&self, current_body: &PerBodyData, compatibility_mode: GltfCompatibilityMode) -> Vec<u8> {
         let mut animation_data: Vec<u8> = vec![];
         let keyframe_data = to_padded_byte_vector(self.keyframe_times.as_ref().unwrap());
-        let rotation_animation_data = self.per_body_data[body_idx].body_rotations.as_ref().unwrap();
-        let mut translation_animation_data = self.per_body_data[body_idx].body_translations.as_ref().unwrap().clone();
-        let scale_animation_data = self.per_body_data[body_idx].body_scales.as_ref().unwrap().clone();
+        let rotation_animation_data = current_body.body_rotations.as_ref().unwrap();
+        let mut translation_animation_data = current_body.body_translations.as_ref().unwrap().clone();
+        let scale_animation_data = current_body.body_scales.as_ref().unwrap().clone();
         animation_data.extend_from_slice(keyframe_data.as_slice());
         assert_eq!(rotation_animation_data.shape()[1], translation_animation_data.shape()[0]);
         for j_idx in 0..rotation_animation_data.shape()[0] {
@@ -1525,17 +1542,25 @@ impl GltfCodec {
         out_data.append(&mut vertex_data.to_owned());
         out_data.append(&mut inv_bind_mat_data.to_owned());
         if self.is_animated() {
-            let mut animation_data = self.create_animation_data(body_idx, current_body, compatibility_mode);
+            let mut animation_data = self.create_animation_data(current_body, compatibility_mode);
             out_data.append(&mut animation_data);
             if self.num_morph_targets() > 0 && body_idx == 0 {
                 for morph_target_idx in 0..self.num_morph_targets() {
                     let mut posedir = self.morph_targets.as_ref().unwrap().slice(s![morph_target_idx, .., ..]).to_owned();
-                    let num_pose_morph_targets = self.num_pose_morph_targets - 1;
+                    let num_pose_morph_targets = self.num_pose_morph_targets.saturating_sub(1);
+                    let num_expression_morph_targets = self.num_expression_morph_targets.saturating_sub(1);
                     if compatibility_mode == GltfCompatibilityMode::Smpl
                         && self.num_pose_morph_targets > 0
                         && morph_target_idx < num_pose_morph_targets
                     {
                         posedir *= 2.0 * PI;
+                    }
+                    if compatibility_mode == GltfCompatibilityMode::Smpl
+                        && self.num_expression_morph_targets > 0
+                        && morph_target_idx > num_pose_morph_targets
+                        && morph_target_idx < self.num_pose_morph_targets + num_expression_morph_targets
+                    {
+                        posedir *= 2.0 * 7.0;
                     }
                     let posedir_data = to_padded_byte_vector(&posedir.to_owned().into_raw_vec_and_offset().0);
                     out_data.append(&mut posedir_data.clone());
@@ -1559,7 +1584,7 @@ impl GltfCodec {
         (out_data, out_buffer_views)
     }
     /// Add a GLTF texture
-    fn add_texture(&mut self, img: &DynImage, index: usize, name: &str) -> Option<GltfTextureInfo> {
+    fn add_texture(&self, img: &DynImage, index: usize, name: &str) -> Option<GltfTextureInfo> {
         let mut image_data: Vec<u8> = vec![];
         let mut target = Cursor::new(&mut image_data);
         let image_data_buffer = img.write_to(&mut target, image::ImageFormat::Png);
@@ -1620,7 +1645,7 @@ impl GltfCodec {
     }
     /// Prepare normal map for GLTF
     #[allow(clippy::cast_sign_loss)]
-    fn prepare_normals(&mut self, smpl_textures: &mut SmplTextures, texture_infos: &mut Vec<GltfTextureInfo>, normals_tex: Option<&DynImage>) {
+    fn prepare_normals(&self, smpl_textures: &mut SmplTextures, texture_infos: &mut Vec<GltfTextureInfo>, normals_tex: Option<&DynImage>) {
         if let Some(img) = normals_tex {
             let normals_tex = self.add_texture(img, texture_infos.len(), "normals");
             if let Some(normals_tex) = normals_tex {
@@ -1631,7 +1656,7 @@ impl GltfCodec {
     }
     /// Prepare metallic-roughness map for GLTF
     fn prepare_metallic_roughness(
-        &mut self,
+        &self,
         smpl_textures: &mut SmplTextures,
         texture_infos: &mut Vec<GltfTextureInfo>,
         metalness_tex: Option<&DynImage>,
@@ -1737,7 +1762,7 @@ impl GltfCodec {
     fn add_skin(
         &mut self,
         name: String,
-        body_idx: usize,
+        current_body: &PerBodyData,
         current_armature_idx: u32,
         accessor_offset: u32,
         nodes: &mut Vec<Node>,
@@ -1746,15 +1771,15 @@ impl GltfCodec {
         compatibility_mode: GltfCompatibilityMode,
     ) -> gltf_json::Index<Node> {
         let metadata = crate::common::metadata::smpl_metadata(&self.smpl_type);
-        let joint_translations = self.per_body_data[body_idx].default_joint_translations.as_ref().unwrap();
+        let joint_translations = current_body.default_joint_translations.as_ref().unwrap();
         let skeleton_root_index = u32::try_from(nodes.len()).expect("Issue converting Node idx to u32");
-        let global_translation = vec_from_array0_f(self.per_body_data[body_idx].body_translation.as_ref().unwrap());
+        let global_translation = vec_from_array0_f(current_body.body_translation.as_ref().unwrap());
         let mut skeleton_root_translation = compute_local_translation(0, &metadata.joint_parents, joint_translations);
         if compatibility_mode == GltfCompatibilityMode::Smpl {
             skeleton_root_translation = addv3f(&skeleton_root_translation, &global_translation);
         }
         let mut joint_rotation = Vector3f::zeros();
-        if let Some(pose) = self.per_body_data[body_idx].pose.as_ref() {
+        if let Some(pose) = current_body.pose.as_ref() {
             let rot = pose.joint_poses.row(0);
             joint_rotation = Vector3f::new(rot[0], rot[1], rot[2]);
         }
@@ -1772,7 +1797,7 @@ impl GltfCodec {
             metadata.joint_names
         };
         for (j, name) in joint_names.iter().enumerate().take(metadata.num_joints + 1).skip(1) {
-            if let Some(pose) = self.per_body_data[body_idx].pose.as_ref() {
+            if let Some(pose) = current_body.pose.as_ref() {
                 let rot = pose.joint_poses.row(j);
                 joint_rotation = Vector3f::new(rot[0], rot[1], rot[2]);
             }

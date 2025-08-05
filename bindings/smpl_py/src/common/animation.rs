@@ -1,16 +1,16 @@
 use super::{
     pose::PyPose,
-    types::{PyAngleType, PySmplType, PyUpAxis},
+    types::{PyAngleType, PyFaceType, PySmplType, PyUpAxis},
 };
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
 use ndarray as nd;
 use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, ToPyArray};
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::prelude::*;
 use smpl_core::common::{
     animation::{AnimWrap, Animation, AnimationConfig},
-    types::{AngleType, SmplType, UpAxis},
+    types::{AngleType, FaceType, SmplType, UpAxis},
 };
 use smpl_utils::convert_enum_from;
 use std::time::Duration;
@@ -31,6 +31,7 @@ pub struct PyAnimation {
 #[pymethods]
 impl PyAnimation {
     #[staticmethod]
+    #[allow(unused_mut)]
     #[allow(clippy::too_many_arguments)]
     #[pyo3(
         signature = (
@@ -41,11 +42,12 @@ impl PyAnimation {
             wrap_behaviour = None,
             angle_type = None,
             up_axis = None,
-            smpl_type = None
+            smpl_type = None,
+            face_type = None
         )
     )]
     #[pyo3(
-        text_signature = "(per_frame_joint_poses: NDArray[np.float32], per_frame_global_trans: NDArray[np.float32], per_expression_coeffs: Optional[NDArray[np.float32]] = None, fps: Optional[float] = None, wrap_behaviour: Optional[AnimWrap] = None, angle_type: Optional[AngleType] = None, up_axis: Optional[UpAxis] = None, smpl_type: Optional[SmplType] = None) -> Animation"
+        text_signature = "(per_frame_joint_poses: NDArray[np.float32], per_frame_global_trans: NDArray[np.float32], per_expression_coeffs: Optional[NDArray[np.float32]] = None, fps: Optional[float] = None, wrap_behaviour: Optional[AnimWrap] = None, angle_type: Optional[AngleType] = None, up_axis: Optional[UpAxis] = None, smpl_type: Optional[SmplType] = None, face_type: Optional[FaceType] = None) -> Animation"
     )]
     pub fn from_matrices(
         per_frame_joint_poses: PyReadonlyArray2<f32>,
@@ -56,25 +58,27 @@ impl PyAnimation {
         angle_type: Option<PyAngleType>,
         up_axis: Option<PyUpAxis>,
         smpl_type: Option<PySmplType>,
+        face_type: Option<PyFaceType>,
     ) -> Self {
         let def = AnimationConfig::default();
         let wrap_behaviour = wrap_behaviour.map_or(def.wrap_behaviour, AnimWrap::from);
         let angle_type = angle_type.map_or(def.angle_type, AngleType::from);
         let up_axis = up_axis.map_or(def.up_axis, UpAxis::from);
         let smpl_type = smpl_type.map_or(def.smpl_type, SmplType::from);
+        let face_type = face_type.map_or(def.face_type, FaceType::from);
         let config = AnimationConfig {
             fps: fps.unwrap_or(def.fps),
             wrap_behaviour,
             angle_type,
             up_axis,
             smpl_type,
+            face_type,
         };
         let per_frame_joint_poses: nd::Array2<f32> = per_frame_joint_poses.to_owned_array();
         let nr_frames = per_frame_joint_poses.dim().0;
         let joints_3 = per_frame_joint_poses.dim().1;
-        let per_frame_joint_poses = match smpl_type {
-            _ => per_frame_joint_poses.into_shape_with_order((nr_frames, joints_3 / 3, 3)).unwrap(),
-        };
+        let mut per_frame_joint_poses = per_frame_joint_poses.clone().into_shape_with_order((nr_frames, joints_3 / 3, 3)).unwrap();
+
         let per_frame_global_trans: nd::Array2<f32> = per_frame_global_trans.to_owned_array();
         let per_frame_expression_coeffs = per_expression_coeffs.map(|x| x.to_owned_array());
         Self {
@@ -89,11 +93,12 @@ impl PyAnimation {
             wrap_behaviour = None,
             angle_type = None,
             up_axis = None,
-            smpl_type = None
+            smpl_type = None,
+            face_type = None
         )
     )]
     #[pyo3(
-        text_signature = "(path_anim: str, fps: Optional[float] = None, wrap_behaviour: Optional[AnimWrap] = None, angle_type: Optional[AngleType] = None, up_axis: Optional[UpAxis] = None, smpl_type: Optional[SmplType] = None) -> Animation"
+        text_signature = "(path_anim: str, fps: Optional[float] = None, wrap_behaviour: Optional[AnimWrap] = None, angle_type: Optional[AngleType] = None, up_axis: Optional[UpAxis] = None, smpl_type: Optional[SmplType] = None, face_type: Optional[FaceType] = None) -> Animation"
     )]
     pub fn from_npz(
         path_anim: &str,
@@ -102,18 +107,21 @@ impl PyAnimation {
         angle_type: Option<PyAngleType>,
         up_axis: Option<PyUpAxis>,
         smpl_type: Option<PySmplType>,
+        face_type: Option<PyFaceType>,
     ) -> Self {
         let def = AnimationConfig::default();
         let wrap_behaviour = wrap_behaviour.map_or(def.wrap_behaviour, AnimWrap::from);
         let angle_type = angle_type.map_or(def.angle_type, AngleType::from);
         let up_axis = up_axis.map_or(def.up_axis, UpAxis::from);
         let smpl_type = smpl_type.map_or(def.smpl_type, SmplType::from);
+        let face_type = face_type.map_or(def.face_type, FaceType::from);
         let config = AnimationConfig {
             fps: fps.unwrap_or(def.fps),
             wrap_behaviour,
             angle_type,
             up_axis,
             smpl_type,
+            face_type,
         };
         Self {
             inner: Animation::new_from_npz(path_anim, config),
@@ -175,13 +183,7 @@ impl PyAnimation {
         self.inner.is_finished()
     }
     #[pyo3(text_signature = "($self, translation: NDArray[np.float32]) -> None")]
-    /// Shift each frame of the animation by the given translation vector.
-    ///
-    /// # Errors
-    /// Will return `ValueError` if the array has incorrect dimensions.
-    pub fn translate(&mut self, translation: PyReadonlyArray1<f32>) -> PyResult<()> {
-        self.inner
-            .translate(&translation.as_array().to_owned())
-            .map_err(PyErr::new::<PyValueError, _>)
+    pub fn translate(&mut self, translation: PyReadonlyArray1<f32>) {
+        self.inner.translate(&translation.as_array().to_owned()).ok();
     }
 }

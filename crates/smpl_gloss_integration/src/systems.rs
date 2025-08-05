@@ -8,12 +8,12 @@ use burn::{
     tensor::{Float, Int, Tensor},
 };
 use core::f32;
+use gloss_geometry::geom::{self, PerVertexNormalsWeightingType};
 use gloss_hecs::Entity;
 use gloss_hecs::{Changed, CommandBuffer};
 use gloss_renderer::plugin_manager::gui::{GuiWindow, GuiWindowType};
 use gloss_renderer::{
     components::{ConfigChanges, ModelMatrix, PosLookat, Renderable, Verts},
-    geom::{Geom, PerVertexNormalsWeightingType},
     plugin_manager::{
         gui::{Checkbox, Selectable, Slider, Widgets},
         Event, RunnerState,
@@ -31,8 +31,8 @@ use log::{info, warn};
 use nalgebra::{self as na};
 use smpl_core::codec::scene::CameraTrack;
 use smpl_core::common::animation::AnimationConfig;
-use smpl_core::common::smpl_model::{SmplCache, SmplModel};
-use smpl_core::common::types::{GltfOutputType, UpAxis};
+use smpl_core::common::smpl_model::{FaceModel, SmplCache, SmplModel};
+use smpl_core::common::types::{FaceType, GltfOutputType, UpAxis};
 use smpl_core::common::{
     animation::Animation,
     betas::Betas,
@@ -243,6 +243,7 @@ fn betas_to_verts_on_backend<B: Backend>(
     smpl_models: &SmplCache<B>,
 ) where
     <B as Backend>::FloatTensorPrimitive<2>: Sync,
+    <B as Backend>::FloatTensorPrimitive<3>: Sync,
     <B as Backend>::IntTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<1>: Sync,
     B::QuantizedTensorPrimitive<2>: Sync,
@@ -262,27 +263,34 @@ fn betas_to_verts_on_backend<B: Backend>(
 /// changed. This internally uses the generic variant of the function suffixed
 /// with ``_on_backend``
 #[allow(clippy::similar_names)]
+#[allow(unused_mut)]
 pub extern "C" fn smpl_expression_offsets(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
         let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        let changed_models = smpl_models_dynamic.is_changed();
+
         let mut query_state = scene
             .world
             .query::<(&SmplParams, &Expression, Changed<Expression>, Changed<SmplParams>)>();
         for (entity, (smpl_params, expression, changed_expression, changed_smpl_params)) in query_state.iter() {
-            if !changed_expression && !changed_smpl_params && !changed_models {
+            if !changed_expression && !changed_smpl_params && !smpl_models_dynamic.is_changed() {
                 continue;
             }
             match &*smpl_models_dynamic {
-                SmplCacheDynamic::NdArray(smpl_models_ndarray) => {
-                    expression_offsets_on_backend::<NdArray>(&mut command_buffer, entity, smpl_params, expression, smpl_models_ndarray);
+                SmplCacheDynamic::NdArray(smpl_models) => {
+                    let mut face_model = smpl_models.get_face_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+
+                    expression_offsets_on_backend(&mut command_buffer, entity, expression, face_model);
                 }
-                SmplCacheDynamic::Wgpu(smpl_models_wgpu) => {
-                    expression_offsets_on_backend::<Wgpu>(&mut command_buffer, entity, smpl_params, expression, smpl_models_wgpu);
+                SmplCacheDynamic::Wgpu(smpl_models) => {
+                    let mut face_model = smpl_models.get_face_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+
+                    expression_offsets_on_backend(&mut command_buffer, entity, expression, face_model);
                 }
-                SmplCacheDynamic::Candle(smpl_models_candle) => {
-                    expression_offsets_on_backend::<Candle>(&mut command_buffer, entity, smpl_params, expression, smpl_models_candle);
+                SmplCacheDynamic::Candle(smpl_models) => {
+                    let mut face_model = smpl_models.get_face_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+
+                    expression_offsets_on_backend(&mut command_buffer, entity, expression, face_model);
                 }
             }
         }
@@ -295,18 +303,17 @@ pub extern "C" fn smpl_expression_offsets(scene: &mut Scene, _runner: &mut Runne
 fn expression_offsets_on_backend<B: Backend>(
     command_buffer: &mut CommandBuffer,
     entity: Entity,
-    smpl_params: &SmplParams,
     expression: &Expression,
-    smpl_models: &SmplCache<B>,
+    face_model: &dyn FaceModel<B>,
 ) where
     <B as Backend>::FloatTensorPrimitive<2>: Sync,
+    <B as Backend>::FloatTensorPrimitive<3>: Sync,
     <B as Backend>::IntTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<1>: Sync,
     B::QuantizedTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<3>: Sync,
 {
-    let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-    let verts_offsets_merged = smpl_model.expression2offsets(expression);
+    let verts_offsets_merged = face_model.expression2offsets(expression);
     let expr_offsets = ExpressionOffsets {
         offsets: verts_offsets_merged,
     };
@@ -340,6 +347,7 @@ pub extern "C" fn smpl_expression_apply(scene: &mut Scene, _runner: &mut RunnerS
 fn apply_expression_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut CommandBuffer, smpl_models: &SmplCache<B>)
 where
     <B as Backend>::FloatTensorPrimitive<2>: Sync,
+    <B as Backend>::FloatTensorPrimitive<3>: Sync,
     <B as Backend>::IntTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<1>: Sync,
     B::QuantizedTensorPrimitive<2>: Sync,
@@ -444,6 +452,7 @@ fn compute_pose_correctives_on_backend<B: Backend>(
     smpl_models_changed: bool,
 ) where
     <B as Backend>::FloatTensorPrimitive<2>: Sync,
+    <B as Backend>::FloatTensorPrimitive<3>: Sync,
     <B as Backend>::IntTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<1>: Sync,
     B::QuantizedTensorPrimitive<2>: Sync,
@@ -487,6 +496,7 @@ pub extern "C" fn smpl_apply_pose(scene: &mut Scene, _runner: &mut RunnerState) 
 fn apply_pose_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut CommandBuffer, smpl_models: &SmplCache<B>)
 where
     <B as Backend>::FloatTensorPrimitive<2>: Sync,
+    <B as Backend>::FloatTensorPrimitive<3>: Sync,
     <B as Backend>::IntTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<1>: Sync,
     B::QuantizedTensorPrimitive<2>: Sync,
@@ -642,13 +652,13 @@ fn compute_common_mesh_data<B: Backend>(smpl_model: &dyn SmplModel<B>, verts_bur
     let uv_burn = smpl_model.uv().clone();
     let faces_burn = smpl_model.faces();
     let normals_merged_burn = match device_str.as_str() {
-        "Cpu" => Geom::compute_per_vertex_normals(
+        "Cpu" => geom::compute_per_vertex_normals(
             &verts_burn.to_nalgebra(),
             &faces_burn.to_nalgebra(),
             &PerVertexNormalsWeightingType::Uniform,
         )
         .to_burn(&verts_burn.device()),
-        _ => Geom::compute_per_vertex_normals_burn(verts_burn, faces_burn, &PerVertexNormalsWeightingType::Uniform),
+        _ => geom::compute_per_vertex_normals_burn(verts_burn, faces_burn, &PerVertexNormalsWeightingType::Uniform),
     };
     let normals_final_burn = if with_uv {
         normals_merged_burn.clone().select(0, mapping.clone())
@@ -658,7 +668,7 @@ fn compute_common_mesh_data<B: Backend>(smpl_model: &dyn SmplModel<B>, verts_bur
     let tangents_burn = if with_uv {
         match device_str.as_str() {
             "Cpu" => Some(
-                Geom::compute_tangents(
+                geom::compute_tangents(
                     &verts_final_burn.to_nalgebra(),
                     &smpl_model.faces_uv().to_nalgebra(),
                     &normals_final_burn.to_nalgebra(),
@@ -666,7 +676,7 @@ fn compute_common_mesh_data<B: Backend>(smpl_model: &dyn SmplModel<B>, verts_bur
                 )
                 .to_burn(&verts_burn.device()),
             ),
-            _ => Some(Geom::compute_tangents_burn(
+            _ => Some(geom::compute_tangents_burn(
                 &verts_final_burn,
                 smpl_model.faces_uv(),
                 &normals_final_burn,
@@ -699,6 +709,8 @@ pub extern "C" fn smpl_align_vertical(scene: &mut Scene, _runner: &mut RunnerSta
 fn align_vertical_on_backend<B: Backend>(scene: &Scene)
 where
     <B as Backend>::FloatTensorPrimitive<2>: Sync,
+    <B as Backend>::FloatTensorPrimitive<3>: Sync,
+    <B as Backend>::IntTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<1>: Sync,
     B::QuantizedTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<3>: Sync,
@@ -709,7 +721,7 @@ where
         .with::<&SmplParams>();
     for (_entity, (verts, mut model_matrix, changed_t_pose)) in query_state.iter() {
         if changed_t_pose {
-            let verts_world = Geom::transform_verts(&verts.0.to_dmatrix(), &model_matrix.0);
+            let verts_world = geom::transform_verts(&verts.0.to_dmatrix(), &model_matrix.0);
             let min_y = verts_world.column(1).min();
             model_matrix.0.append_translation_mut(&na::Translation3::<f32>::new(0.0, -min_y, 0.0));
         }
@@ -814,6 +826,7 @@ pub extern "C" fn smpl_follow_anim(scene: &mut Scene, runner: &mut RunnerState) 
 fn handle_goal_for_backend<B: Backend>(scene: &Scene, entity: Entity, model_matrix: na::SimilarityMatrix3<f32>) -> Option<na::Point3<f32>>
 where
     <B as Backend>::FloatTensorPrimitive<2>: Sync,
+    <B as Backend>::FloatTensorPrimitive<3>: Sync,
     <B as Backend>::IntTensorPrimitive<2>: Sync,
     B::QuantizedTensorPrimitive<1>: Sync,
     B::QuantizedTensorPrimitive<2>: Sync,
@@ -830,7 +843,7 @@ where
     } else if scene.world.has::<Verts>(entity).unwrap() && scene.world.has::<ModelMatrix>(entity).unwrap() {
         let verts = scene.world.get::<&Verts>(entity).unwrap();
         let model_matrix = scene.world.get::<&ModelMatrix>(entity).unwrap();
-        Some(Geom::get_centroid(&verts.0.to_dmatrix(), Some(model_matrix.0)))
+        Some(geom::get_centroid(&verts.0.to_dmatrix(), Some(model_matrix.0)))
     } else {
         None
     }
@@ -855,17 +868,15 @@ pub extern "C" fn hide_floor_when_viewed_from_below(scene: &mut Scene, _runner: 
                 warn!("rs: hide_floor_when_viewed_from_below: No ModelMatrix on floor");
                 return;
             };
-            let verts_world = Geom::transform_verts(&verts.0.to_dmatrix(), &model_matrix.0);
+            let verts_world = geom::transform_verts(&verts.0.to_dmatrix(), &model_matrix.0);
             verts_world.column(1).min()
         };
         if pos.coords.y < min_y {
             if scene.world.has::<Renderable>(floor.entity).unwrap() {
                 scene.world.remove_one::<Renderable>(floor.entity).unwrap();
             }
-        } else {
-            if !scene.world.has::<Renderable>(floor.entity).unwrap() {
-                scene.world.insert_one(floor.entity, Renderable).unwrap();
-            }
+        } else if !scene.world.has::<Renderable>(floor.entity).unwrap() {
+            scene.world.insert_one(floor.entity, Renderable).unwrap();
         }
     }
 }
@@ -874,23 +885,23 @@ pub extern "C" fn hide_floor_when_viewed_from_below(scene: &mut Scene, _runner: 
 #[allow(clippy::semicolon_if_nothing_returned)]
 #[allow(clippy::too_many_lines)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
-pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+pub extern "C" fn smpl_params_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_renderer::plugin_manager::gui::Button;
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
     use smpl_core::{
         codec::{codec::SmplCodec, gltf::GltfCodec},
         common::types::{Gender, GltfCompatibilityMode},
     };
-    extern "C" fn enable_pose_corrective_toggle(new_val: bool, _widget_name: RString, entity: Entity, scene: &mut Scene) {
-        if let Ok(mut smpl_params) = scene.world.get::<&mut SmplParams>(entity) {
+    extern "C" fn enable_pose_corrective_toggle(new_val: bool, _widget_name: &RString, entity: &Entity, scene: &mut Scene) {
+        if let Ok(mut smpl_params) = scene.world.get::<&mut SmplParams>(*entity) {
             smpl_params.enable_pose_corrective = new_val;
         }
     }
-    extern "C" fn save_smpl(_widget_name: RString, entity: Entity, scene: &mut Scene) {
-        let codec = SmplCodec::from_entity(&entity, scene, None);
+    extern "C" fn save_smpl(_widget_name: &RString, entity: &Entity, scene: &mut Scene) {
+        let codec = SmplCodec::from_entity(entity, scene, None);
         codec.to_file("./saved.smpl");
     }
-    extern "C" fn save_gltf_smpl(_widget_name: RString, _entity: Entity, scene: &mut Scene) {
+    extern "C" fn save_gltf_smpl(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         let mut codec = GltfCodec::from_scene(scene, None, true);
         let now = wasm_timer::Instant::now();
         codec.to_file(
@@ -898,16 +909,18 @@ pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut 
             "./saved/output.gltf",
             GltfOutputType::Standard,
             GltfCompatibilityMode::Smpl,
+            FaceType::SmplX,
         );
         codec.to_file(
             "Meshcapade Avatar",
             "./saved/output.glb",
             GltfOutputType::Binary,
             GltfCompatibilityMode::Smpl,
+            FaceType::SmplX,
         );
-        println!("Smpl mode `.gltf` export took {:?} seconds", now.elapsed());
+        info!("Time taken for Smpl mode `.gltf` export: {:?}", now.elapsed());
     }
-    extern "C" fn save_gltf_unreal(_widget_name: RString, _entity: Entity, scene: &mut Scene) {
+    extern "C" fn save_gltf_unreal(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         let mut codec = GltfCodec::from_scene(scene, None, true);
         let now = wasm_timer::Instant::now();
         codec.to_file(
@@ -915,17 +928,19 @@ pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut 
             "./saved/output.gltf",
             GltfOutputType::Standard,
             GltfCompatibilityMode::Unreal,
+            FaceType::ARKit,
         );
         codec.to_file(
             "Meshcapade Avatar",
             "./saved/output.glb",
             GltfOutputType::Binary,
             GltfCompatibilityMode::Unreal,
+            FaceType::ARKit,
         );
-        println!("Unreal mode `.gltf` export took {:?} seconds", now.elapsed());
+        info!("Time taken for Unreal mode `.gltf` export: {:?}", now.elapsed());
     }
-    extern "C" fn change_gender(_val: bool, widget_name: RString, entity: Entity, scene: &mut Scene) {
-        if let Ok(mut smpl_params) = scene.world.get::<&mut SmplParams>(entity) {
+    extern "C" fn change_gender(_val: bool, widget_name: &RString, entity: &Entity, scene: &mut Scene) {
+        if let Ok(mut smpl_params) = scene.world.get::<&mut SmplParams>(*entity) {
             match widget_name.as_str() {
                 "neutral" => smpl_params.gender = Gender::Neutral,
                 "female" => smpl_params.gender = Gender::Female,
@@ -936,7 +951,7 @@ pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut 
     }
     let mut widgets = RVec::new();
     if let RSome(entity) = selected_entity {
-        if let Ok(smpl_params) = scene.world.get::<&SmplParams>(entity) {
+        if let Ok(smpl_params) = scene.world.get::<&SmplParams>(*entity) {
             let checkbox = Checkbox::new(
                 "enable_pose_corrective",
                 smpl_params.enable_pose_corrective,
@@ -970,17 +985,17 @@ pub extern "C" fn smpl_params_gui(selected_entity: ROption<Entity>, scene: &mut 
 #[cfg(feature = "with-gui")]
 #[allow(clippy::semicolon_if_nothing_returned)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
-pub extern "C" fn smpl_betas_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+pub extern "C" fn smpl_betas_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
-    extern "C" fn beta_slider_change(new_val: f32, widget_name: RString, entity: Entity, scene: &mut Scene) {
-        let beta_idx: usize = widget_name.split(' ').last().unwrap().parse().unwrap();
-        if let Ok(mut betas) = scene.world.get::<&mut Betas>(entity) {
+    extern "C" fn beta_slider_change(new_val: f32, widget_name: &RString, entity: &Entity, scene: &mut Scene) {
+        let beta_idx: usize = widget_name.split(' ').next_back().unwrap().parse().unwrap();
+        if let Ok(mut betas) = scene.world.get::<&mut Betas>(*entity) {
             betas.betas[beta_idx] = new_val;
         }
     }
     let mut widgets = RVec::new();
     if let RSome(entity) = selected_entity {
-        if let Ok(betas) = scene.world.get::<&Betas>(entity) {
+        if let Ok(betas) = scene.world.get::<&Betas>(*entity) {
             for i in 0..betas.betas.len() {
                 let slider = Slider::new(
                     ("Beta ".to_owned() + &i.to_string()).as_str(),
@@ -1003,30 +1018,44 @@ pub extern "C" fn smpl_betas_gui(selected_entity: ROption<Entity>, scene: &mut S
 }
 #[allow(missing_docs)]
 #[cfg(feature = "with-gui")]
+#[allow(clippy::single_match)]
 #[allow(clippy::semicolon_if_nothing_returned)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
-pub extern "C" fn smpl_expression_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+pub extern "C" fn smpl_expression_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
-    extern "C" fn expr_slider_change(new_val: f32, widget_name: RString, entity: Entity, scene: &mut Scene) {
-        let coeff_idx: usize = widget_name.split('_').last().unwrap().parse().unwrap();
-        if let Ok(mut coeffs) = scene.world.get::<&mut Expression>(entity) {
-            coeffs.expr_coeffs[coeff_idx] = new_val;
+    extern "C" fn expr_slider_change(new_val: f32, widget_name: &RString, entity: &Entity, scene: &mut Scene) {
+        if let Ok(mut expression) = scene.world.get::<&mut Expression>(*entity) {
+            #[allow(unused_mut)]
+            let mut coeff_idx: usize = 0;
+            if let Ok(idx) = widget_name.split('_').next_back().unwrap().parse() {
+                coeff_idx = idx;
+            }
+
+            expression.expr_coeffs[coeff_idx] = new_val;
         }
     }
     let mut widgets = RVec::new();
     if let RSome(entity) = selected_entity {
-        if let Ok(expression) = scene.world.get::<&Expression>(entity) {
-            for i in 0..expression.expr_coeffs.len() {
-                let slider = Slider::new(
-                    ("Coeff_".to_owned() + &i.to_string()).as_str(),
-                    expression.expr_coeffs[i],
-                    -5.0,
-                    5.0,
-                    RSome(80.0),
-                    expr_slider_change,
-                    RNone,
-                );
-                widgets.push(Widgets::Slider(slider));
+        let face_type = scene
+            .world
+            .get::<&Expression>(*entity)
+            .as_deref()
+            .unwrap_or(&Expression::default())
+            .expr_type;
+        if let Ok(expression) = scene.world.get::<&Expression>(*entity) {
+            if face_type == FaceType::SmplX {
+                for i in 0..expression.expr_coeffs.len() {
+                    let slider = Slider::new(
+                        ("Coeff_".to_owned() + &i.to_string()).as_str(),
+                        expression.expr_coeffs[i],
+                        -5.0,
+                        5.0,
+                        RSome(80.0),
+                        expr_slider_change,
+                        RNone,
+                    );
+                    widgets.push(Widgets::Slider(slider));
+                }
             }
         }
     }
@@ -1040,28 +1069,28 @@ pub extern "C" fn smpl_expression_gui(selected_entity: ROption<Entity>, scene: &
 #[cfg(feature = "with-gui")]
 #[allow(clippy::semicolon_if_nothing_returned)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
-pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_renderer::plugin_manager::gui::{Button, WindowPivot, WindowPosition, WindowPositionType};
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
-    extern "C" fn scene_anim_slider_change(new_val: f32, _widget_name: RString, _entity: Entity, scene: &mut Scene) {
+    extern "C" fn scene_anim_slider_change(new_val: f32, _widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         if let Ok(mut scene_anim) = scene.get_resource::<&mut SceneAnimation>() {
             scene_anim.set_cur_time_as_sec(new_val);
             scene_anim.runner.temporary_pause = true;
         }
     }
-    extern "C" fn scene_anim_slider_no_change(_widget_name: RString, _entity: Entity, scene: &mut Scene) {
+    extern "C" fn scene_anim_slider_no_change(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         if let Ok(mut scene_anim) = scene.get_resource::<&mut SceneAnimation>() {
             scene_anim.runner.temporary_pause = false;
         }
     }
-    extern "C" fn scene_button_play_pause(_widget_name: RString, _entity: Entity, scene: &mut Scene) {
+    extern "C" fn scene_button_play_pause(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         if let Ok(mut scene_anim) = scene.get_resource::<&mut SceneAnimation>() {
             scene_anim.runner.paused = !scene_anim.runner.paused;
         }
     }
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
-    extern "C" fn scene_button_next_frame(_widget_name: RString, _entity: Entity, scene: &mut Scene) {
+    extern "C" fn scene_button_next_frame(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         if let Ok(mut scene_anim) = scene.get_resource::<&mut SceneAnimation>() {
             let nr_frames = scene_anim.num_frames;
             let duration = scene_anim.duration();
@@ -1069,7 +1098,7 @@ pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene:
             scene_anim.advance(dt_between_frames, false);
         }
     }
-    extern "C" fn scene_fps_slider_change(new_val: f32, _widget_name: RString, _entity: Entity, scene: &mut Scene) {
+    extern "C" fn scene_fps_slider_change(new_val: f32, _widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         if let Ok(mut scene_anim) = scene.get_resource::<&mut SceneAnimation>() {
             let cur_time = scene_anim.get_cur_time();
             let prev_fps = scene_anim.config.fps;
@@ -1078,7 +1107,7 @@ pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene:
             scene_anim.config.fps = new_val;
         }
     }
-    extern "C" fn follow_anim(new_val: bool, _widget_name: RString, _entity: Entity, scene: &mut Scene) {
+    extern "C" fn follow_anim(new_val: bool, _widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         if new_val {
             scene.add_resource(Follower::new(FollowParams::default()));
         } else {
@@ -1097,7 +1126,7 @@ pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene:
                 max_duration,
                 RSome(800.0),
                 scene_anim_slider_change,
-                RSome(scene_anim_slider_no_change as extern "C" fn(RString, Entity, &mut Scene)),
+                RSome(scene_anim_slider_no_change as extern "C" fn(&RString, &Entity, &mut Scene)),
             );
             let button_play_pause = Button::new("Play / Pause", scene_button_play_pause);
             let button_next_frame = Button::new("Next Frame", scene_button_next_frame);
@@ -1122,12 +1151,12 @@ pub extern "C" fn smpl_anim_scroll_gui(_selected_entity: ROption<Entity>, scene:
 #[cfg(feature = "with-gui")]
 #[allow(clippy::semicolon_if_nothing_returned)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
-pub extern "C" fn smpl_hand_pose_gui(selected_entity: ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+pub extern "C" fn smpl_hand_pose_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_renderer::plugin_manager::gui::SelectableList;
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
     use log::warn;
     use smpl_core::common::pose_hands::HandType;
-    extern "C" fn set_hand_pose_type(widget_name: RString, entity: Entity, scene: &mut Scene) {
+    extern "C" fn set_hand_pose_type(widget_name: &RString, entity: &Entity, scene: &mut Scene) {
         let hand_type = match widget_name.to_string().as_str() {
             "Flat" => Some(HandType::Flat),
             "Relaxed" => Some(HandType::Relaxed),
@@ -1141,17 +1170,17 @@ pub extern "C" fn smpl_hand_pose_gui(selected_entity: ROption<Entity>, scene: &m
         let mut command_buffer = CommandBuffer::new();
         if let Some(hand_type) = hand_type {
             info!("setting to {hand_type:?}");
-            if let Ok(mut pose_mask) = scene.world.get::<&mut PoseOverride>(entity) {
+            if let Ok(mut pose_mask) = scene.world.get::<&mut PoseOverride>(*entity) {
                 info!("we already have a pose mask");
                 pose_mask.set_overwrite_hands(hand_type);
             } else {
                 info!("inserting a new pose mask");
                 let pose_mask = PoseOverride::allow_all().overwrite_hands(hand_type).build();
-                command_buffer.insert_one(entity, pose_mask);
+                command_buffer.insert_one(*entity, pose_mask);
             }
         } else {
             info!("removing overwrite");
-            if let Ok(mut pose_mask) = scene.world.get::<&mut PoseOverride>(entity) {
+            if let Ok(mut pose_mask) = scene.world.get::<&mut PoseOverride>(*entity) {
                 info!("removing overwrite and we have posemask");
                 if pose_mask.get_overwrite_hands_type().is_some() {
                     pose_mask.remove_overwrite_hands();
@@ -1162,7 +1191,7 @@ pub extern "C" fn smpl_hand_pose_gui(selected_entity: ROption<Entity>, scene: &m
     }
     let mut widgets = RVec::new();
     if let RSome(entity) = selected_entity {
-        if let Ok(pose_mask) = scene.world.get::<&PoseOverride>(entity) {
+        if let Ok(pose_mask) = scene.world.get::<&PoseOverride>(*entity) {
             let hand_type_overwrite = pose_mask.get_overwrite_hands_type();
             let mut selectable_vec = RVec::new();
             selectable_vec.push(Selectable::new("None", hand_type_overwrite.is_none(), set_hand_pose_type));

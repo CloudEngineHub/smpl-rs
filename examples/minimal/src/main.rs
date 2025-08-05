@@ -6,12 +6,13 @@ use gloss_renderer::{config::LogLevel, gloss_setup_logger};
 use smpl_core::common::{
     animation::{AnimWrap, Animation, AnimationConfig},
     betas::Betas,
+    expression::Expression,
     pose_hands::HandType,
     pose_override::PoseOverride,
     pose_parts::PosePart,
     smpl_model::SmplCacheDynamic,
     smpl_params::SmplParams,
-    types::{Gender, SmplType, UpAxis},
+    types::{FaceType, Gender, SmplType, UpAxis},
 };
 use smpl_gloss_integration::{components::GlossInterop, plugin::SmplPlugin};
 use std::path::Path;
@@ -32,8 +33,9 @@ fn main() {
         .insert(
             entity,
             (
-                SmplParams::new(SmplType::SmplX, Gender::Female, true),
+                SmplParams::new(SmplType::SmplX, Gender::Neutral, true),
                 Betas::new_empty(10),
+                Expression::new_empty(50, FaceType::SmplX),
                 Animation::new_from_npz(
                     path_anim,
                     AnimationConfig {

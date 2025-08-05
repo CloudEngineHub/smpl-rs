@@ -4,7 +4,7 @@ use crate::{
         expression::Expression,
         outputs::SmplOutputDynamic,
         pose::Pose,
-        smpl_model::{SmplCacheDynamic, SmplModel},
+        smpl_model::{FaceModel, SmplCacheDynamic, SmplModel},
         smpl_options::SmplOptions,
         types::{Gender, SmplType, UpAxis},
     },
@@ -168,16 +168,18 @@ impl<B: Backend> SmplXGPU<B> {
         let b_faces = faces.to_burn(&device);
         let b_faces_uv_mesh = faces_uv_mesh.to_burn(&device);
         let b_uv = uv.to_burn(&device);
+        let actual_num_betas = max_num_betas.min(shape_dirs.shape()[2]);
         let shape_dirs = shape_dirs
-            .slice_axis(Axis(2), ndarray::Slice::from(0..max_num_betas))
+            .slice_axis(Axis(2), ndarray::Slice::from(0..actual_num_betas))
             .to_owned()
-            .into_shape_with_order((NUM_VERTS * 3, max_num_betas))
+            .into_shape_with_order((NUM_VERTS * 3, actual_num_betas))
             .unwrap();
         let b_shape_dirs = shape_dirs.to_burn(&device);
         let b_expression_dirs = expression_dirs.map(|expression_dirs| {
+            let actual_num_expression_components = max_num_expression_components.min(expression_dirs.shape()[2]);
             let expression_dirs = expression_dirs
-                .slice_axis(nd::Axis(2), nd::Slice::from(0..max_num_expression_components))
-                .into_shape_with_order((NUM_VERTS * 3, max_num_expression_components))
+                .slice_axis(nd::Axis(2), nd::Slice::from(0..actual_num_expression_components))
+                .into_shape_with_order((NUM_VERTS * 3, actual_num_expression_components))
                 .unwrap()
                 .to_owned();
             expression_dirs.to_burn(&device)
@@ -274,9 +276,10 @@ impl<B: Backend> SmplXGPU<B> {
         let (shape_dirs, expression_dirs) = if let Ok(expression_dirs) = npz.by_name("expressiondirs") {
             (full_shape_dirs, Some(expression_dirs))
         } else {
-            let shape_dirs = full_shape_dirs
-                .slice_axis(nd::Axis(2), nd::Slice::from(0..max_num_betas.min(300)))
-                .to_owned();
+            let num_available_betas = full_shape_dirs.shape()[2];
+            let num_full_betas = 300;
+            let num_betas_to_use = num_full_betas.min(max_num_betas).min(num_available_betas);
+            let shape_dirs = full_shape_dirs.slice_axis(nd::Axis(2), nd::Slice::from(0..num_betas_to_use)).to_owned();
             let expression_dirs = if full_shape_dirs.shape()[2] > 300 {
                 Some(
                     full_shape_dirs
@@ -358,6 +361,33 @@ impl<B: Backend> SmplXGPU<B> {
         b_pose_dirs.unwrap()
     }
 }
+impl<B: Backend> FaceModel<B> for SmplXGPU<B>
+where
+    B::IntTensorPrimitive<1>: Sync,
+    B::IntTensorPrimitive<2>: Sync,
+    B::FloatTensorPrimitive<2>: Sync,
+    B::QuantizedTensorPrimitive<2>: std::marker::Sync,
+{
+    #[allow(clippy::missing_panics_doc)]
+    #[allow(non_snake_case)]
+    #[allow(clippy::let_and_return)]
+    fn expression2offsets(&self, expression: &Expression) -> Tensor<B, 2, Float> {
+        let device = self.verts_template.device();
+        let offsets = if let Some(ref expression_dirs) = self.expression_dirs {
+            let input_nr_expression_coeffs = expression.expr_coeffs.len();
+            let model_nr_expression_coeffs = expression_dirs.shape().dims[1];
+            let nr_expression_coeffs = input_nr_expression_coeffs.min(model_nr_expression_coeffs);
+            let expr_sliced = expression.expr_coeffs.slice(s![0..nr_expression_coeffs]);
+            let expr_tensor = Tensor::<B, 1, Float>::from_floats(expr_sliced.as_slice().unwrap(), &device);
+            let expression_dirs_sliced = expression_dirs.clone().slice([0..expression_dirs.dims()[0], 0..nr_expression_coeffs]);
+            let v_expr_offsets = expression_dirs_sliced.matmul(expr_tensor.reshape([-1, 1]));
+            v_expr_offsets.reshape([NUM_VERTS, 3])
+        } else {
+            Tensor::<B, 2, Float>::zeros([NUM_VERTS, 3], &device)
+        };
+        offsets
+    }
+}
 impl<B: Backend> SmplModel<B> for SmplXGPU<B>
 where
     B::FloatTensorPrimitive<2>: Sync,
@@ -377,6 +407,9 @@ where
     }
     fn gender(&self) -> Gender {
         self.gender
+    }
+    fn get_face_model(&self) -> &dyn FaceModel<B> {
+        self
     }
     #[allow(clippy::missing_panics_doc)]
     #[allow(non_snake_case)]
@@ -423,32 +456,16 @@ where
     #[allow(clippy::let_and_return)]
     fn betas2verts(&self, betas: &Betas) -> Tensor<B, 2, Float> {
         let device = self.verts_template.device();
-        let betas_slice = betas.betas.as_slice().unwrap();
-        let betas_tensor = Tensor::<B, 1, Float>::from_floats(betas_slice, &device);
-        let input_nr_betas = betas_tensor.shape().dims[0];
-        let shape_dirs_sliced = self.shape_dirs.clone().slice([0..self.shape_dirs.dims()[0], 0..input_nr_betas]);
-        let v_beta_offsets = shape_dirs_sliced.matmul(betas_tensor.reshape([input_nr_betas, 1]));
+        let input_nr_betas = betas.betas.len();
+        let model_nr_betas = self.shape_dirs.shape().dims[1];
+        let nr_betas = input_nr_betas.min(model_nr_betas);
+        let betas_sliced = betas.betas.slice(s![0..nr_betas]);
+        let betas_tensor = Tensor::<B, 1, Float>::from_floats(betas_sliced.as_slice().unwrap(), &device);
+        let shape_dirs_sliced = self.shape_dirs.clone().slice([0..self.shape_dirs.dims()[0], 0..nr_betas]);
+        let v_beta_offsets = shape_dirs_sliced.matmul(betas_tensor.reshape([-1, 1]));
         let v_beta_offsets_reshaped = v_beta_offsets.reshape([NUM_VERTS, 3]);
         let verts_t_pose = v_beta_offsets_reshaped.add(self.verts_template.clone());
         verts_t_pose
-    }
-    #[allow(clippy::missing_panics_doc)]
-    #[allow(non_snake_case)]
-    #[allow(clippy::let_and_return)]
-    fn expression2offsets(&self, expression: &Expression) -> Tensor<B, 2, Float> {
-        let device = self.verts_template.device();
-        let offsets = if let Some(ref expression_dirs) = self.expression_dirs {
-            let input_nr_expression_coeffs = expression.expr_coeffs.len();
-            let expression_dirs_sliced = expression_dirs
-                .clone()
-                .slice([0..expression_dirs.dims()[0], 0..input_nr_expression_coeffs]);
-            let expr_coeffs_tensor = Tensor::<B, 1, Float>::from_floats(expression.expr_coeffs.as_slice().unwrap(), &device);
-            let v_expr_offsets = expression_dirs_sliced.matmul(expr_coeffs_tensor.reshape([input_nr_expression_coeffs, 1]));
-            v_expr_offsets.reshape([NUM_VERTS, 3])
-        } else {
-            Tensor::<B, 2, Float>::zeros([NUM_VERTS, 3], &device)
-        };
-        offsets
     }
     fn verts2joints(&self, verts_t_pose: Tensor<B, 2, Float>) -> Tensor<B, 2, Float> {
         self.joint_regressor.clone().matmul(verts_t_pose)

@@ -7,6 +7,7 @@ import os
 import os.path as osp
 
 from gloss import Viewer
+from gloss.log import gloss_setup_logger as setup_logger, LogLevel
 
 from smpl_rs import SmplCache
 from smpl_rs.codec import McsCodec
@@ -14,9 +15,7 @@ from smpl_rs.plugins import SmplPlugin
 from smpl_rs.types import SmplType, Gender
 from smpl_rs.components import GlossInterop
 
-from gloss.log import gloss_setup_logger as setup_logger, LogLevel
-
-setup_logger(log_level = LogLevel.Info)
+setup_logger(log_level=LogLevel.Info)
 
 if __name__ == "__main__":
     viewer = Viewer()

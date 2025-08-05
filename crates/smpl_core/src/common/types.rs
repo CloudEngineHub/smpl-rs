@@ -11,6 +11,11 @@ pub enum SmplType {
     Supr,
     SmplPP,
 }
+#[derive(Clone, Copy, Debug, Enum, FromPrimitive, PartialEq)]
+pub enum FaceType {
+    SmplX = 0,
+    ARKit,
+}
 #[derive(Clone, Copy, PartialEq)]
 pub enum AngleType {
     AxisAngle,

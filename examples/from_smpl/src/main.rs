@@ -16,7 +16,7 @@ fn main() {
     let path_diffuse = "./data/smplx/female_alb_2.png";
     let path_normal = "./data/smplx/female_nrm.png";
     let path_roughness = "./data/smplx/texture_f_r.png";
-    let path_codec = "./data/smplx/squat_ow.smpl";
+    let path_codec = "./data/smplx/surpised.smpl";
     let codec = SmplCodec::from_file(path_codec);
     let mut entity = viewer.scene.get_or_create_entity("mesh_smpl");
     entity

@@ -4,7 +4,7 @@ use super::{
     pose::Pose,
     types::{AngleType, SmplType, UpAxis},
 };
-use crate::codec::codec::SmplCodec;
+use crate::{codec::codec::SmplCodec, common::types::FaceType};
 use core::time::Duration;
 use gloss_utils::nshare::{RefNdarray1, ToNalgebra};
 use log::debug;
@@ -35,6 +35,7 @@ pub struct AnimationConfig {
     pub angle_type: AngleType,
     pub up_axis: UpAxis,
     pub smpl_type: SmplType,
+    pub face_type: FaceType,
 }
 impl Default for AnimationConfig {
     fn default() -> Self {
@@ -44,6 +45,7 @@ impl Default for AnimationConfig {
             angle_type: AngleType::AxisAngle,
             up_axis: UpAxis::Y,
             smpl_type: SmplType::SmplX,
+            face_type: FaceType::SmplX,
         }
     }
 }
@@ -231,6 +233,7 @@ impl Animation {
             )
             .unwrap();
             let per_frame_expression_coeffs = codec.expression_parameters.clone();
+            println!("per_frame_expression_coeffs {:?}", per_frame_expression_coeffs.is_some());
             let config = AnimationConfig {
                 smpl_type: codec.smpl_type(),
                 wrap_behaviour,
@@ -376,7 +379,7 @@ impl Animation {
     pub fn get_expression_at_idx(&self, idx: usize) -> Option<Expression> {
         if let Some(ref per_frame_expression_coeffs) = self.per_frame_expression_coeffs {
             let expr_coeffs = per_frame_expression_coeffs.index_axis(nd::Axis(0), idx).to_owned();
-            Some(Expression::new(expr_coeffs))
+            Some(Expression::new(expr_coeffs, self.config.face_type))
         } else {
             None
         }

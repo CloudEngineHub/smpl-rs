@@ -18,24 +18,28 @@ from smpl_rs.components import SmplParams, Betas, Animation, GlossInterop
 
 # Set up the logger
 # To be called only once per process. Can select between Off, Error, Warn, Info, Debug, Trace
-setup_logger(log_level = LogLevel.Info)
+setup_logger(log_level=LogLevel.Info)
 
 if __name__ == "__main__":
     viewer = Viewer()
-    mesh = viewer.get_or_create_entity(name = "mesh")
+    mesh = viewer.get_or_create_entity(name="mesh")
 
     # get paths to all the data needed for this entity
-    path_data = os.path.join( os.path.dirname( os.path.realpath(__file__) ),"../../../data/smplx")
-    path_anim = os.path.join(path_data,"apose_to_00093lazysaturdaynightfever.npz")
-    path_model_neutral = os.path.join(path_data,"SMPLX_neutral_array_f32_slim.npz")
-    path_model_male = os.path.join(path_data,"SMPLX_male_array_f32_slim.npz")
-    path_model_female = os.path.join(path_data,"SMPLX_female_array_f32_slim.npz")
+    path_data = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "../../../data/smplx"
+    )
+    path_anim = os.path.join(path_data, "apose_to_00093lazysaturdaynightfever.npz")
+    path_model_neutral = os.path.join(path_data, "SMPLX_neutral_array_f32_slim.npz")
+    path_model_male = os.path.join(path_data, "SMPLX_male_array_f32_slim.npz")
+    path_model_female = os.path.join(path_data, "SMPLX_female_array_f32_slim.npz")
 
-    rot = ModelMatrix.default()\
-                .with_translation( np.array([0, 0.09, 0], dtype = "float32")  )\
-                .with_rotation_euler( np.array([0.0, -1.571, 0], dtype = "float32")  )
+    rot = (
+        ModelMatrix.default()
+        .with_translation(np.array([0, 0.09, 0], dtype="float32"))
+        .with_rotation_euler(np.array([0.0, -1.571, 0], dtype="float32"))
+    )
 
-    #entity for the smpl model
+    # entity for the smpl model
     smpl_params = SmplParams.default()
     betas = Betas.default()
     animation = Animation.from_npz(path_anim, fps=100.0, smpl_type=SmplType.SmplH)
@@ -47,7 +51,7 @@ if __name__ == "__main__":
     mesh.insert(rot)
 
     # entity for the joints
-    joints = viewer.get_or_create_entity(name = "joints")
+    joints = viewer.get_or_create_entity(name="joints")
     joints_line_visualisation = VisLines(show_lines=True, line_width=5.0, zbuffer=False)
     joints.insert(joints_line_visualisation)
     joints.insert(rot)

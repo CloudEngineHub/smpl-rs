@@ -1,5 +1,5 @@
 use burn::prelude::Backend;
-use gloss_renderer::geom::{Geom, PerVertexNormalsWeightingType};
+use gloss_geometry::geom::{self, PerVertexNormalsWeightingType};
 use gloss_utils::bshare::{ToBurn, ToNalgebraFloat, ToNalgebraInt};
 use smpl_core::common::outputs::SmplOutputDynamic;
 /// Add some gloss specific functions
@@ -11,7 +11,7 @@ impl<B: Backend> SmplOutputGloss for SmplOutputDynamic<B> {
     fn compute_normals(&mut self) {
         let v_na = self.verts.clone().into_nalgebra();
         let f_na = self.faces.clone().into_nalgebra();
-        let normals = Geom::compute_per_vertex_normals(&v_na, &f_na, &PerVertexNormalsWeightingType::Area);
+        let normals = geom::compute_per_vertex_normals(&v_na, &f_na, &PerVertexNormalsWeightingType::Area);
         self.normals = Some(normals.to_burn(&self.verts.device()));
     }
 }
