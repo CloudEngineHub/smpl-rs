@@ -3,9 +3,10 @@ use log::info;
 use ndarray as nd;
 use ndarray_npy::{NpzReader, NpzWriter};
 use num_traits::FromPrimitive;
+use smpl_utils::log;
 use std::{
     ffi::OsStr,
-    fs::File,
+    fs::{self, File},
     io::{Cursor, Read, Seek, Write},
     path::Path,
 };
@@ -45,6 +46,19 @@ impl SmplCodec {
     /// # Panics
     /// Will panic if it can't create the file
     pub fn to_file(&self, path: &str) {
+        let parent_path = Path::new(path).parent();
+        let file_name = Path::new(path).file_name();
+        let Some(parent_path) = parent_path else {
+            log!("Error: Exporting SMPL - Something wrong with the path: {}", path);
+            return;
+        };
+        if !parent_path.exists() {
+            let _ = fs::create_dir_all(parent_path);
+        }
+        let Some(_) = file_name else {
+            log!("Error: Exporting SMPL - no file name found: {}", path);
+            return;
+        };
         let mut path_with_suffix = path.to_string();
         let extension = Path::new(path).extension().and_then(OsStr::to_str);
         if let Some(ext) = extension {

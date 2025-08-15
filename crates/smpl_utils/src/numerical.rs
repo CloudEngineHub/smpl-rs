@@ -1,4 +1,4 @@
-use gloss_utils::nshare::ToNalgebra;
+use gloss_utils::nshare::{RefNdarray2, ToNalgebra};
 use nalgebra as na;
 use nalgebra::clamp;
 use ndarray as nd;
@@ -146,4 +146,22 @@ pub fn batch_rigid_transform(
         rel_transforms.slice_mut(s![i, .., ..]).assign(&transformed_joint_4);
     }
     (posed_joints, rel_transforms)
+}
+/// Converts a 2D array of quaternions of shape Nx4 (each row being a quaternion in format xyzw) and a 2D array of translations of shape Nx3 to extrinsics as an 3D array of Nx4x4
+pub fn extract_extrinsics_from_rot_trans(translations: &ndarray::Array2<f32>, rotations: &ndarray::Array2<f32>) -> ndarray::Array3<f32> {
+    let num_frames = translations.shape()[0].min(rotations.shape()[0]);
+    let mut extrinsics = ndarray::Array3::<f32>::zeros((num_frames, 4, 4));
+    for frame in 0..num_frames {
+        let trans = nalgebra::Vector3::new(translations[(frame, 0)], translations[(frame, 1)], translations[(frame, 2)]);
+        let quat = nalgebra::UnitQuaternion::new_normalize(nalgebra::Quaternion::new(
+            rotations[(frame, 3)],
+            rotations[(frame, 0)],
+            rotations[(frame, 1)],
+            rotations[(frame, 2)],
+        ));
+        let transform = nalgebra::Isometry3::from_parts(trans.into(), quat);
+        let matrix_4x4 = transform.to_homogeneous();
+        extrinsics.slice_mut(s![frame, .., ..]).assign(&matrix_4x4.ref_ndarray2());
+    }
+    extrinsics
 }

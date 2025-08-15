@@ -86,13 +86,15 @@ fn main() {
                     .insert(gloss_interop)
                     .insert(smpl_options);
             }
-            let config = AnimationConfig {
-                fps: mcs_codec.frame_rate,
-                wrap_behaviour: AnimWrap::Loop,
-                ..Default::default()
-            };
-            let smpl_scene = SceneAnimation::new_with_config(mcs_codec.num_frames, config);
-            viewer.scene.add_resource(smpl_scene);
+            if let Some(frame_rate) = mcs_codec.frame_rate {
+                let config = AnimationConfig {
+                    fps: frame_rate,
+                    wrap_behaviour: AnimWrap::Loop,
+                    ..Default::default()
+                };
+                let smpl_scene = SceneAnimation::new_with_config(mcs_codec.num_frames, config);
+                viewer.scene.add_resource(smpl_scene);
+            }
         }
         "smpl" => {
             assert!(male_model_path.exists(), "Male model data not found at {:?}", male_model_path);

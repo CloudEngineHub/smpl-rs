@@ -19,7 +19,7 @@ fn main() {
     let mut viewer = Viewer::new(config_path.to_str());
     let mut smpl_models = SmplCacheDynamic::default();
     smpl_models.set_lazy_loading(SmplType::SmplX, Gender::Neutral, "./data/smplx/SMPLX_neutral_array_f32_slim.npz");
-    let scene_path = "./data/mcs/red_shirt_guy.mcs";
+    let scene_path = "./data/mcs/skate_04.mcs";
     let mut mcs_codec = McsCodec::from_file(scene_path);
     let builders = mcs_codec.to_entity_builders();
     for mut builder in builders {
@@ -30,13 +30,15 @@ fn main() {
         let name = viewer.scene.get_unused_name();
         viewer.scene.get_or_create_entity(&name).insert_builder(builder).insert(gloss_interop);
     }
-    let config = AnimationConfig {
-        fps: mcs_codec.frame_rate,
-        wrap_behaviour: AnimWrap::Loop,
-        ..Default::default()
-    };
-    let smpl_scene = SceneAnimation::new_with_config(mcs_codec.num_frames, config);
-    viewer.scene.add_resource(smpl_scene);
+    if let Some(frame_rate) = mcs_codec.frame_rate {
+        let config = AnimationConfig {
+            fps: frame_rate,
+            wrap_behaviour: AnimWrap::Loop,
+            ..Default::default()
+        };
+        let smpl_scene = SceneAnimation::new_with_config(mcs_codec.num_frames, config);
+        viewer.scene.add_resource(smpl_scene);
+    }
     viewer.scene.add_resource(smpl_models);
     viewer.insert_plugin(&SmplPlugin::new(true));
     viewer.run();

@@ -886,9 +886,11 @@ pub extern "C" fn hide_floor_when_viewed_from_below(scene: &mut Scene, _runner: 
 #[allow(clippy::too_many_lines)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_params_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+    use crate::scene::McsCodecGloss;
     use gloss_renderer::plugin_manager::gui::Button;
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
     use smpl_core::{
+        codec::scene::McsCodec,
         codec::{codec::SmplCodec, gltf::GltfCodec},
         common::types::{Gender, GltfCompatibilityMode},
     };
@@ -899,7 +901,11 @@ pub extern "C" fn smpl_params_gui(selected_entity: &ROption<Entity>, scene: &mut
     }
     extern "C" fn save_smpl(_widget_name: &RString, entity: &Entity, scene: &mut Scene) {
         let codec = SmplCodec::from_entity(entity, scene, None);
-        codec.to_file("./saved.smpl");
+        codec.to_file("./saved/output.smpl");
+    }
+    extern "C" fn save_mcs(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
+        let codec = McsCodec::from_scene(scene);
+        codec.to_file("./saved/output.mcs");
     }
     extern "C" fn save_gltf_smpl(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
         let mut codec = GltfCodec::from_scene(scene, None, true);
@@ -964,6 +970,7 @@ pub extern "C" fn smpl_params_gui(selected_entity: &ROption<Entity>, scene: &mut
             let chk_female = Checkbox::new("female", is_female, change_gender);
             let chk_male = Checkbox::new("male", is_male, change_gender);
             let button_save_smpl = Button::new("Save as .smpl", save_smpl);
+            let button_save_mcs = Button::new("Save as .mcs", save_mcs);
             let button_save_gltf_smpl = Button::new("Save as .gltf (SMPL)", save_gltf_smpl);
             let button_save_gltf_unreal = Button::new("Save as .gltf (UNREAL)", save_gltf_unreal);
             widgets.push(Widgets::Checkbox(chk_neutral));
@@ -971,6 +978,7 @@ pub extern "C" fn smpl_params_gui(selected_entity: &ROption<Entity>, scene: &mut
             widgets.push(Widgets::Checkbox(chk_male));
             widgets.push(Widgets::Checkbox(checkbox));
             widgets.push(Widgets::Button(button_save_smpl));
+            widgets.push(Widgets::Button(button_save_mcs));
             widgets.push(Widgets::Button(button_save_gltf_smpl));
             widgets.push(Widgets::Button(button_save_gltf_unreal));
         }
@@ -1265,8 +1273,10 @@ pub extern "C" fn smpl_event_dropfile(scene: &mut Scene, _runner: &mut RunnerSta
                         scene.get_or_create_entity(&name).insert_builder(builder).insert(gloss_interop);
                         handled = true;
                     }
-                    let smpl_scene = SceneAnimation::new_with_fps(codec.num_frames, codec.frame_rate);
-                    scene.add_resource(smpl_scene);
+                    if let Some(fps) = codec.frame_rate {
+                        let smpl_scene = SceneAnimation::new_with_fps(codec.num_frames, fps);
+                        scene.add_resource(smpl_scene);
+                    }
                 }
                 _ => {
                     info!("No known filetype {}", path);

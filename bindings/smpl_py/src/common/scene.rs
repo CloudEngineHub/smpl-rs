@@ -29,7 +29,7 @@ impl PyMcsCodec {
         self.inner.num_frames
     }
     #[getter]
-    pub fn frame_rate(&self) -> f32 {
+    pub fn frame_rate(&self) -> Option<f32> {
         self.inner.frame_rate
     }
     #[getter]

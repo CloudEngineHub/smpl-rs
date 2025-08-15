@@ -50,7 +50,6 @@ futures.workspace=true
 pollster.workspace=true
 wasm-bindgen.workspace=true
 backtrace.workspace=true
-# reqwest.workspace=true
 ndarray-npy = { workspace = true, features = ["npz", "compressed_npz"]}
 gltf = "1.4.0"
 gltf-json = { version = "1.4.1", features = ["extras", "extensions"] }

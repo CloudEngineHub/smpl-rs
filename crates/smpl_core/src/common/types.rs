@@ -1,9 +1,10 @@
 use enum_map::Enum;
 use num_derive::FromPrimitive;
+use strum_macros::Display;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 /// Various ``SmplModel`` types
-#[derive(Clone, Copy, Debug, Enum, FromPrimitive, PartialEq)]
+#[derive(Clone, Copy, Debug, Enum, FromPrimitive, PartialEq, Display)]
 pub enum SmplType {
     Smpl = 0,
     SmplH,
@@ -21,7 +22,7 @@ pub enum AngleType {
     AxisAngle,
     Euler,
 }
-#[derive(Clone, Copy, PartialEq, Debug, Enum, FromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Debug, Enum, FromPrimitive, Display)]
 pub enum Gender {
     Neutral = 0,
     Male,

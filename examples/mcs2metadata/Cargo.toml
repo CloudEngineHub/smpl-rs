@@ -1,0 +1,20 @@
+[package]
+name = "mcs2metadata"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+smpl-core = { path = "../../crates/smpl_core", default-features = false  }
+smpl-gloss-integration = { path = "../../crates/smpl_gloss_integration", default-features = false  }
+smpl-utils = { path = "../../crates/smpl_utils", default-features = false  }
+gloss-renderer = {workspace= true, default-features = false}
+
+
+#third party
+clap.workspace=true
+serde.workspace=true
+serde_json.workspace=true
+num-traits.workspace=true
+ndarray.workspace=true
