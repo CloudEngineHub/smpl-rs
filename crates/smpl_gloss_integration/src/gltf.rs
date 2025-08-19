@@ -86,14 +86,7 @@ fn from_scene_on_backend<B: Backend>(
     max_texture_size: Option<u32>,
     entities: Option<&Vec<String>>,
     export_camera: bool,
-) -> GltfCodec
-where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<1>: std::marker::Sync,
-    B::QuantizedTensorPrimitive<2>: std::marker::Sync,
-    B::QuantizedTensorPrimitive<3>: std::marker::Sync,
-{
+) -> GltfCodec {
     let now = wasm_timer::Instant::now();
     let mut gltf_codec = GltfCodec::default();
     let mut nr_frames = 0;
@@ -225,7 +218,7 @@ where
             let scene_anim = scene.get_resource::<&SceneAnimation>().unwrap();
             nr_frames = scene_anim.num_frames;
             let fps = scene_anim.config.fps;
-            info!("Processing Animation for body {:?}", body_idx);
+            info!("Processing Animation for body {body_idx:?}");
             let anim = scene.get_comp::<&Animation>(&entity).unwrap();
             gltf_codec.frame_count = Some(nr_frames);
             let mut keyframe_times: Vec<f32> = Vec::new();

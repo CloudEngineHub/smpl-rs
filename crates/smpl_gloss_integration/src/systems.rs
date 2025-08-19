@@ -241,14 +241,7 @@ fn betas_to_verts_on_backend<B: Backend>(
     smpl_params: &SmplParams,
     smpl_betas: &Betas,
     smpl_models: &SmplCache<B>,
-) where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::FloatTensorPrimitive<3>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<1>: Sync,
-    B::QuantizedTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<3>: Sync,
-{
+) {
     let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
     let v_burn_merged = smpl_model.betas2verts(smpl_betas);
     let joints_t_pose = smpl_model.verts2joints(v_burn_merged.clone());
@@ -305,14 +298,7 @@ fn expression_offsets_on_backend<B: Backend>(
     entity: Entity,
     expression: &Expression,
     face_model: &dyn FaceModel<B>,
-) where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::FloatTensorPrimitive<3>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<1>: Sync,
-    B::QuantizedTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<3>: Sync,
-{
+) {
     let verts_offsets_merged = face_model.expression2offsets(expression);
     let expr_offsets = ExpressionOffsets {
         offsets: verts_offsets_merged,
@@ -344,15 +330,7 @@ pub extern "C" fn smpl_expression_apply(scene: &mut Scene, _runner: &mut RunnerS
 /// Function to apply expression offsets on a generic Burn Backend. We currently
 /// support - ``Candle``, ``NdArray``, and ``Wgpu``
 #[allow(clippy::too_many_arguments)]
-fn apply_expression_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut CommandBuffer, smpl_models: &SmplCache<B>)
-where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::FloatTensorPrimitive<3>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<1>: Sync,
-    B::QuantizedTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<3>: Sync,
-{
+fn apply_expression_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut CommandBuffer, smpl_models: &SmplCache<B>) {
     let mut query_state = scene.world.query::<(
         &SmplParams,
         &mut SmplOutputPoseTDynamic<B>,
@@ -450,14 +428,7 @@ fn compute_pose_correctives_on_backend<B: Backend>(
     command_buffer: &mut CommandBuffer,
     smpl_models: &SmplCache<B>,
     smpl_models_changed: bool,
-) where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::FloatTensorPrimitive<3>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<1>: Sync,
-    B::QuantizedTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<3>: Sync,
-{
+) {
     let mut query_state = scene.world.query::<(&SmplParams, &mut Pose, Changed<Pose>, Changed<SmplParams>)>();
     for (entity, (smpl_params, smpl_pose, changed_pose, changed_smpl_params)) in query_state.iter() {
         if (!changed_pose && !changed_smpl_params && !smpl_models_changed) || !smpl_params.enable_pose_corrective {
@@ -493,15 +464,7 @@ pub extern "C" fn smpl_apply_pose(scene: &mut Scene, _runner: &mut RunnerState) 
 /// Function for applying pose on a generic Burn Backend. We currently support -
 /// ``Candle``, ``NdArray``, and ``Wgpu``
 #[allow(clippy::too_many_arguments)]
-fn apply_pose_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut CommandBuffer, smpl_models: &SmplCache<B>)
-where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::FloatTensorPrimitive<3>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<1>: Sync,
-    B::QuantizedTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<3>: Sync,
-{
+fn apply_pose_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut CommandBuffer, smpl_models: &SmplCache<B>) {
     let mut query_state = scene.world.query::<(
         &SmplParams,
         &mut SmplOutputPoseTDynamic<B>,
@@ -706,15 +669,7 @@ pub extern "C" fn smpl_align_vertical(scene: &mut Scene, _runner: &mut RunnerSta
     }
     command_buffer.run_on(&mut scene.world);
 }
-fn align_vertical_on_backend<B: Backend>(scene: &Scene)
-where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::FloatTensorPrimitive<3>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<1>: Sync,
-    B::QuantizedTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<3>: Sync,
-{
+fn align_vertical_on_backend<B: Backend>(scene: &Scene) {
     let mut query_state = scene
         .world
         .query::<(&Verts, &mut ModelMatrix, Changed<SmplOutputPoseTDynamic<B>>)>()
@@ -823,15 +778,7 @@ pub extern "C" fn smpl_follow_anim(scene: &mut Scene, runner: &mut RunnerState) 
     }
     command_buffer.run_on(&mut scene.world);
 }
-fn handle_goal_for_backend<B: Backend>(scene: &Scene, entity: Entity, model_matrix: na::SimilarityMatrix3<f32>) -> Option<na::Point3<f32>>
-where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::FloatTensorPrimitive<3>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<1>: Sync,
-    B::QuantizedTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<3>: Sync,
-{
+fn handle_goal_for_backend<B: Backend>(scene: &Scene, entity: Entity, model_matrix: na::SimilarityMatrix3<f32>) -> Option<na::Point3<f32>> {
     if scene.world.has::<SmplOutputPosedDynamic<B>>(entity).unwrap() {
         let output_posed = scene.world.get::<&SmplOutputPosedDynamic<B>>(entity).unwrap();
         let joints_ndarray = output_posed.joints.to_ndarray();
@@ -1247,7 +1194,7 @@ pub extern "C" fn smpl_event_dropfile(scene: &mut Scene, _runner: &mut RunnerSta
             }
             match filetype {
                 FileType::Smpl => {
-                    info!("handling dropped smpl file {}", path);
+                    info!("handling dropped smpl file {path}");
                     let codec = SmplCodec::from_file(path);
                     let mut builder = codec.to_entity_builder();
                     if !builder.has::<Betas>() {
@@ -1260,7 +1207,7 @@ pub extern "C" fn smpl_event_dropfile(scene: &mut Scene, _runner: &mut RunnerSta
                     handled = true;
                 }
                 FileType::Mcs => {
-                    info!("handling dropped mcs file {}", path);
+                    info!("handling dropped mcs file {path}");
                     let mut codec = McsCodec::from_file(path);
                     let builders = codec.to_entity_builders();
                     for mut builder in builders {
@@ -1279,7 +1226,7 @@ pub extern "C" fn smpl_event_dropfile(scene: &mut Scene, _runner: &mut RunnerSta
                     }
                 }
                 _ => {
-                    info!("No known filetype {}", path);
+                    info!("No known filetype {path}");
                 }
             }
         }

@@ -234,7 +234,7 @@ impl<B: Backend> SmplXGPU<B> {
         let lbs_weights_nd: nd::ArcArray2<f32> = lbs_weights.into();
         let cols: Vec<usize> = (0..lbs_weights_nd.ncols()).collect();
         let lbs_weights_split_nd = lbs_weights_nd.to_owned().gather(&idx_vuv_2_vnouv_vec, &cols).into();
-        info!("Initialised burn on Backend: {:?}", B::name());
+        info!("Initialised burn on Backend: {:?}", B::name(&device));
         info!("Device: {:?}", &device);
         Self {
             smpl_type: SmplType::SmplX,
@@ -361,13 +361,7 @@ impl<B: Backend> SmplXGPU<B> {
         b_pose_dirs.unwrap()
     }
 }
-impl<B: Backend> FaceModel<B> for SmplXGPU<B>
-where
-    B::IntTensorPrimitive<1>: Sync,
-    B::IntTensorPrimitive<2>: Sync,
-    B::FloatTensorPrimitive<2>: Sync,
-    B::QuantizedTensorPrimitive<2>: std::marker::Sync,
-{
+impl<B: Backend> FaceModel<B> for SmplXGPU<B> {
     #[allow(clippy::missing_panics_doc)]
     #[allow(non_snake_case)]
     #[allow(clippy::let_and_return)]
@@ -388,14 +382,7 @@ where
         offsets
     }
 }
-impl<B: Backend> SmplModel<B> for SmplXGPU<B>
-where
-    B::FloatTensorPrimitive<2>: Sync,
-    B::IntTensorPrimitive<2>: Sync,
-    B::IntTensorPrimitive<1>: Sync,
-    B::QuantizedTensorPrimitive<1>: std::marker::Sync,
-    B::QuantizedTensorPrimitive<2>: std::marker::Sync,
-{
+impl<B: Backend> SmplModel<B> for SmplXGPU<B> {
     fn clone_dyn(&self) -> Box<dyn SmplModel<B>> {
         Box::new(self.clone())
     }

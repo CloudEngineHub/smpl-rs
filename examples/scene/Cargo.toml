@@ -14,16 +14,8 @@ gloss-utils = {workspace= true, default-features = false}
 
 #third party
 egui.workspace=true
-ndarray-rand = "0.15"
 ndarray-npy.workspace=true
 nalgebra.workspace=true
-nalgebra-glm = "0.18"
-rand = "0.8"
-enum-map = "2.6.0"
-strum = "0.26.3"
-strum_macros = "0.26.3"
-pollster = "0.3"
-futures="0.3"
 ndarray.workspace=true
 burn.workspace=true
 wgpu.workspace=true

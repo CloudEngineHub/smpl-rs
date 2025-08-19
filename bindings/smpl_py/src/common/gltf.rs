@@ -46,6 +46,6 @@ impl PyGltfCodec {
         let face_mode = out_face_type.unwrap_or(PyFaceType::SmplX);
         self.inner
             .to_file("Meshcapade Avatar", path, output_type, compatibility_mode.into(), face_mode.into());
-        info!("Saved glTF to {}", path);
+        info!("Saved glTF to {path}");
     }
 }

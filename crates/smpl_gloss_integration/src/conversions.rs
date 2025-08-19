@@ -23,10 +23,7 @@ pub fn update_entity_on_backend<B: Backend>(
     uv: DynamicTensorFloat2D,
     faces: DynamicTensorInt2D,
     _smpl_model: &dyn SmplModel<B>,
-) where
-    <B as Backend>::FloatTensorPrimitive<2>: Sync,
-    <B as Backend>::IntTensorPrimitive<2>: Sync,
-{
+) {
     if with_uv && !scene.world.has::<UVs>(entity).unwrap() {
         commands.insert_one(entity, UVs(uv));
     }

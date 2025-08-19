@@ -38,10 +38,11 @@ gloss-geometry = {version = "0.7", default-features = false}
 log = "0.4"
 cfg-if = "1"
 image = { version= "0.25", default-features = false, features=["jpeg", "png", "tiff"] } #TODO maybe replace it with zune-image
-egui = {version = "0.29", default-features = false, features= ["default_fonts"]}
+egui = {version = "0.32", default-features = false, features= ["default_fonts"]}
 nalgebra = {version = "0.32", default-features = false, features = ["serde-serialize-no-std"]}
 ndarray-npy = { version = "0.9", default-features = false, features = []}
 ndarray = { version = "0.16"  }
+ndarray-rand = "0.15"
 pollster = "0.3"
 map-range = "0.1"
 wasm-timer = "0.2"
@@ -59,18 +60,36 @@ serde_json = "1.0"
 smallvec = "1.11"
 abi_stable = "0.11.3"
 abi_stable_derive = "0.11.3"
-burn-import ={ version = "0.14", default-features = false, features=["onnx"]}
 gltf-json = { version = "1.4.1", features = ["extras", "extensions"] }
 dyn-clone ="1.0"
-burn = { version = "0.14", default-features = false, features=["ndarray", "wgpu", "candle", "autotune"]}
-wgpu       = { version = "22.1.0",  default-features = false, features = ["wgsl", "spirv", "webgl", "metal"] } 
+burn = {version = "0.18", default-features = false, features=["ndarray", "wgpu", "candle", "std"]}
+burn-ndarray = {version = "0.18", default-features = false}
+burn-import ={ version = "0.18", default-features = false, features=["onnx"]} 
+wgpu       = { version = "25.0", default-features = false,  features = ["wgsl", "spirv"] } 
 bytemuck = { version = "1.12", features = [ "derive" ] }
 futures = "0.3"
-wasm-bindgen="=0.2.100"
 bytemuck_derive = "=1.8.1"
 crossbeam-channel = "=0.5.15"
 clap = {version = "4.5", features = ["derive"]}
 backtrace = "=0.3.74"
+# =====================================================================
+# Dependencies for wasm https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#added-support-for-the-web
+# =====================================================================
+console_error_panic_hook = "0.1.6"
+console_log = "1.0"
+wasm-bindgen = "=0.2.100"
+wasm-bindgen-futures = "0.4"
+reqwest = { version = "0.12", features = ["json"], default-features = false }
+web-sys = { version = "0.3", features = [
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "Document",
+    "Window",
+    "Element",
+]}
+js-sys = "0.3"
 
 # =====================================================================
 [profile.dev]
@@ -95,6 +114,11 @@ lto = true
 # =====================================================================
 [profile.bench]
 debug = true
+
+[profile.release-thin-lto]
+inherits = "release"
+lto = "thin"
+
 
 # =====================================================================
 [workspace.lints.clippy]

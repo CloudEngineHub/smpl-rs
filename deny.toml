@@ -109,6 +109,7 @@ allow = [
     "Unicode-DFS-2016",               # https://spdx.org/licenses/Unicode-DFS-2016.html
     "Unicode-3.0",                    # https://spdx.org/licenses/Unicode-3.0.html
     "Zlib",                           # https://tldrlegal.com/license/zlib-libpng-license-(zlib)
+    "Ubuntu-font-1.0",                # https://ubuntu.com/legal/font-licence
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
@@ -240,6 +241,11 @@ skip-tree = [
     { name = "base64" }, # the latest gltf crate uses an old version - 0.13, but reqwest uses 0.22 
     { name = "itertools" }, # re_memory uses 0.13 and puffin which is a dependency of re_memory uses 0.10 
     { name = "foreign-types" }, # the latest openssl uses an older version (0.3.2) but winit uses the latest
+    { name = "gemm" }, #burn pulls many versions of this dependency
+    { name = "darling" }, #burn pulls different versions of this
+    { name = "toml" }, #burn and gloss pull different versions of this
+    { name = "naga" }, #include-wgsl-oil pulls this dependency which conflicts with the one that wgpu pulls
+    { name = "windows" },           #re-memory pull windows 0.52 but wgpu-hal->gpu-allcator pull windows 0.58.
 ]
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:

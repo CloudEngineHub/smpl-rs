@@ -228,6 +228,7 @@ impl<B: Backend> SmplCache<B> {
     }
     pub fn set_lazy_loading(&mut self, smpl_type: SmplType, gender: Gender, path: &str) {
         self.type_to_path[smpl_type].gender_to_path[gender] = Some(path.to_string());
+        #[cfg(not(target_arch = "wasm32"))]
         assert!(
             std::path::Path::new(&path).exists(),
             "File at path {path} does not exist. Please follow the data download instructions in the README."

@@ -24,8 +24,8 @@ gloss-utils.workspace=true
 backtrace.workspace=true
 
 # Burn dependencies for neural network functionality
-burn = "0.14"
-burn-ndarray = "0.14"
+burn.workspace=true
+burn-ndarray.workspace=true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
