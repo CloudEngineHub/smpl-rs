@@ -1,5 +1,6 @@
 use gloss_hecs::{Entity, EntityBuilder};
 use gloss_renderer::scene::Scene;
+use gloss_utils::bshare::ToNdArray;
 use log::info;
 use nd::concatenate;
 use ndarray as nd;
@@ -9,12 +10,14 @@ use smpl_core::{
         animation::{AnimWrap, Animation},
         betas::Betas,
         metadata::smpl_metadata,
-        pose::Pose,
+        pose::{Pose, PoseG},
         pose_override::PoseOverride,
         pose_retarget::RetargetPoseYShift,
         smpl_params::SmplParams,
+        vertex_offsets::VertexOffsets,
     },
     conversions::{pose_chunked::PoseChunked, pose_remap::PoseRemap},
+    AppBackend,
 };
 use smpl_utils::log;
 use std::cmp::Ordering;
@@ -37,36 +40,42 @@ impl SmplCodecGloss for SmplCodec {
         codec.smpl_version = smpl_version;
         codec.gender = gender;
         if let Ok(betas) = scene.get_comp::<&Betas>(entity) {
-            codec.shape_parameters = Some(betas.betas.clone());
+            codec.shape_parameters = Some(betas.betas.clone().to_ndarray());
         }
         if scene.world.has::<Pose>(*entity).unwrap() && !scene.world.has::<Animation>(*entity).unwrap() {
             log!("we are writing a pose in the codec");
             let pose = scene.get_comp::<&Pose>(entity).unwrap();
             let metadata = smpl_metadata(&smpl_params.smpl_type);
             let chunked = PoseChunked::new(&pose, &metadata);
-            codec.body_translation = Some(chunked.global_trans);
+            codec.body_translation = Some(chunked.global_trans.to_ndarray());
             if chunked.global_orient.is_some() && chunked.body_pose.is_some() {
-                let body_pose_with_root =
-                    concatenate(nd::Axis(0), &[chunked.global_orient.unwrap().view(), chunked.body_pose.unwrap().view()]).unwrap();
+                let body_pose_with_root = concatenate(
+                    nd::Axis(0),
+                    &[
+                        chunked.global_orient.unwrap().to_ndarray().view(),
+                        chunked.body_pose.unwrap().to_ndarray().view(),
+                    ],
+                )
+                .unwrap();
                 codec.body_pose = Some(body_pose_with_root.insert_axis(nd::Axis(0)));
             }
             if chunked.jaw_pose.is_some() && chunked.left_eye_pose.is_some() && chunked.right_eye_pose.is_some() {
                 let head_pose = concatenate(
                     nd::Axis(0),
                     &[
-                        chunked.jaw_pose.unwrap().view(),
-                        chunked.left_eye_pose.unwrap().view(),
-                        chunked.right_eye_pose.unwrap().view(),
+                        chunked.jaw_pose.unwrap().to_ndarray().view(),
+                        chunked.left_eye_pose.unwrap().to_ndarray().view(),
+                        chunked.right_eye_pose.unwrap().to_ndarray().view(),
                     ],
                 )
                 .unwrap();
                 codec.head_pose = Some(head_pose.insert_axis(nd::Axis(0)));
             }
             if let Some(left_hand_pose) = chunked.left_hand_pose {
-                codec.left_hand_pose = Some(left_hand_pose.insert_axis(nd::Axis(0)));
+                codec.left_hand_pose = Some(left_hand_pose.to_ndarray().insert_axis(nd::Axis(0)));
             }
             if let Some(right_hand_pose) = chunked.right_hand_pose {
-                codec.right_hand_pose = Some(right_hand_pose.insert_axis(nd::Axis(0)));
+                codec.right_hand_pose = Some(right_hand_pose.to_ndarray().insert_axis(nd::Axis(0)));
             }
         } else if scene.world.has::<Animation>(*entity).unwrap() {
             log!("we are writing a animation in the codec");
@@ -79,7 +88,7 @@ impl SmplCodecGloss for SmplCodec {
             let mut full_left_hand_pose = nd::Array3::<f32>::zeros((nr_frames, metadata.num_hand_joints, 3));
             let mut full_right_hand_pose = nd::Array3::<f32>::zeros((nr_frames, metadata.num_hand_joints, 3));
             for time_idx in 0..anim.num_animation_frames() {
-                let mut pose = anim.get_pose_at_idx(time_idx);
+                let mut pose: PoseG<AppBackend> = anim.get_pose_at_idx(time_idx);
                 let pose_remap = PoseRemap::new(pose.smpl_type, smpl_params.smpl_type);
                 pose = pose_remap.remap(&pose);
                 if let Ok(ref pose_mask) = scene.get_comp::<&PoseOverride>(entity) {
@@ -93,29 +102,39 @@ impl SmplCodecGloss for SmplCodec {
                 let chunked = PoseChunked::new(&pose, &metadata);
                 full_body_translation
                     .index_axis_mut(nd::Axis(0), time_idx)
-                    .assign(&chunked.global_trans.to_shape(3).unwrap());
+                    .assign(&chunked.global_trans.to_ndarray().to_shape(3).unwrap());
                 if chunked.global_orient.is_some() && chunked.body_pose.is_some() {
-                    let body_pose_with_root =
-                        concatenate(nd::Axis(0), &[chunked.global_orient.unwrap().view(), chunked.body_pose.unwrap().view()]).unwrap();
+                    let body_pose_with_root = concatenate(
+                        nd::Axis(0),
+                        &[
+                            chunked.global_orient.unwrap().to_ndarray().view(),
+                            chunked.body_pose.unwrap().to_ndarray().view(),
+                        ],
+                    )
+                    .unwrap();
                     full_body_pose.index_axis_mut(nd::Axis(0), time_idx).assign(&body_pose_with_root);
                 }
                 if chunked.jaw_pose.is_some() && chunked.left_eye_pose.is_some() && chunked.right_eye_pose.is_some() {
                     let head_pose = concatenate(
                         nd::Axis(0),
                         &[
-                            chunked.jaw_pose.unwrap().view(),
-                            chunked.left_eye_pose.unwrap().view(),
-                            chunked.right_eye_pose.unwrap().view(),
+                            chunked.jaw_pose.unwrap().to_ndarray().view(),
+                            chunked.left_eye_pose.unwrap().to_ndarray().view(),
+                            chunked.right_eye_pose.unwrap().to_ndarray().view(),
                         ],
                     )
                     .unwrap();
                     full_head_pose.index_axis_mut(nd::Axis(0), time_idx).assign(&head_pose);
                 }
                 if let Some(left_hand_pose) = chunked.left_hand_pose {
-                    full_left_hand_pose.index_axis_mut(nd::Axis(0), time_idx).assign(&left_hand_pose);
+                    full_left_hand_pose
+                        .index_axis_mut(nd::Axis(0), time_idx)
+                        .assign(&left_hand_pose.to_ndarray());
                 }
                 if let Some(right_hand_pose) = chunked.right_hand_pose {
-                    full_right_hand_pose.index_axis_mut(nd::Axis(0), time_idx).assign(&right_hand_pose);
+                    full_right_hand_pose
+                        .index_axis_mut(nd::Axis(0), time_idx)
+                        .assign(&right_hand_pose.to_ndarray());
                 }
             }
             codec.frame_count = nr_frames as i32;
@@ -150,6 +169,11 @@ impl SmplCodecGloss for SmplCodec {
                 builder.add(pose);
             }
             Ordering::Less => {}
+        }
+        let offsets = VertexOffsets::new_from_smpl_codec(self);
+        if let Some(offsets) = offsets {
+            info!("Found vertex offsets in the .smpl file");
+            builder.add(offsets);
         }
         builder
     }

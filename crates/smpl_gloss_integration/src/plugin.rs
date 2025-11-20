@@ -1,3 +1,4 @@
+use crate::systems::prop_transform_sequence;
 #[cfg(feature = "with-gui")]
 use crate::systems::smpl_anim_scroll_gui;
 use crate::systems::smpl_auto_add_follow;
@@ -10,10 +11,15 @@ use crate::systems::smpl_event_dropfile;
 use crate::systems::smpl_expression_gui;
 #[cfg(feature = "with-gui")]
 use crate::systems::smpl_hand_pose_gui;
+#[cfg(feature = "with-gui")]
+use crate::systems::smpl_interop_gui;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::systems::smpl_lazy_load_model;
 #[cfg(feature = "with-gui")]
 use crate::systems::smpl_params_gui;
+use crate::systems::smpl_vertex_offset_apply;
+#[cfg(feature = "with-gui")]
+use crate::systems::smpl_vertex_offset_gui;
 use crate::systems::{hide_floor_when_viewed_from_below, smpl_advance_anim};
 use crate::systems::{
     smpl_apply_pose, smpl_betas_to_verts, smpl_compute_pose_correctives, smpl_expression_apply, smpl_expression_offsets, smpl_follow_anim,
@@ -54,6 +60,7 @@ impl Plugin for SmplPlugin {
             LogicSystem::new(smpl_betas_to_verts).with_name("smpl_betas_to_verts"),
             LogicSystem::new(smpl_expression_offsets).with_name("smpl_expression_offsets"),
             LogicSystem::new(smpl_expression_apply).with_name("smpl_expression_apply"),
+            LogicSystem::new(smpl_vertex_offset_apply).with_name("smpl_vertex_offset_apply"),
             LogicSystem::new(smpl_make_dummy_pose).with_name("smpl_make_dummy_pose"),
             LogicSystem::new(smpl_pose_remap).with_name("smpl_pose_remap"),
             LogicSystem::new(smpl_mask_pose).with_name("smpl_mask_pose"),
@@ -62,6 +69,7 @@ impl Plugin for SmplPlugin {
             LogicSystem::new(smpl_to_gloss_mesh).with_name("smpl_to_gloss_mesh"),
             LogicSystem::new(smpl_follow_anim).with_name("smpl_follow_anim"),
             LogicSystem::new(hide_floor_when_viewed_from_below).with_name("hide_floor_when_viewed_from_below"),
+            LogicSystem::new(prop_transform_sequence).with_name("prop_transform_sequence"),
         ];
         vec.append(&mut rest);
         vec
@@ -73,8 +81,10 @@ impl Plugin for SmplPlugin {
             if #[cfg(feature = "with-gui")] { vec.push(GuiSystem::new(smpl_params_gui));
             vec.push(GuiSystem::new(smpl_betas_gui)); vec
             .push(GuiSystem::new(smpl_expression_gui)); vec
+            .push(GuiSystem::new(smpl_vertex_offset_gui)); vec
             .push(GuiSystem::new(smpl_anim_scroll_gui)); vec
-            .push(GuiSystem::new(smpl_hand_pose_gui)); } else {}
+            .push(GuiSystem::new(smpl_hand_pose_gui)); vec
+            .push(GuiSystem::new(smpl_interop_gui)); } else {}
         }
         vec
     }

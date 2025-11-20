@@ -1,6 +1,7 @@
 use super::codec::SmplCodec;
 use base64;
 use gltf_json::{validation::Checked::Valid, Root, Value};
+use log::info;
 use ndarray as nd;
 use smpl_utils::log;
 use std::{
@@ -27,6 +28,16 @@ impl Default for CameraTrack {
             aspect_ratio: None,
             per_frame_translations: None,
             per_frame_rotations: None,
+        }
+    }
+}
+impl CameraTrack {
+    /// Returns the number of frames in the camera track. If the camera track is static, returns 0
+    pub fn num_frames(&self) -> usize {
+        if let Some(per_frame_translations) = &self.per_frame_translations {
+            per_frame_translations.shape()[0]
+        } else {
+            0
         }
     }
 }
@@ -133,13 +144,28 @@ impl McsCodec {
                 }
             };
             if gltf.animations.is_empty() {
+                let mut static_translation = None;
+                let mut static_rotation = None;
+                for node in &gltf.nodes {
+                    if node.camera.is_some() {
+                        if let Some(translation) = &node.translation {
+                            static_translation =
+                                Some(nd::Array2::from_shape_vec((1, 3), vec![translation[0], translation[1], translation[2]]).unwrap());
+                        }
+                        if let Some(rotation) = &node.rotation {
+                            let quat = rotation.0;
+                            static_rotation = Some(nd::Array2::from_shape_vec((1, 4), vec![quat[0], quat[1], quat[2], quat[3]]).unwrap());
+                        }
+                        break;
+                    }
+                }
                 return Some(CameraTrack {
                     yfov,
                     znear,
                     zfar,
                     aspect_ratio,
-                    per_frame_translations: None,
-                    per_frame_rotations: None,
+                    per_frame_translations: static_translation,
+                    per_frame_rotations: static_rotation,
                 });
             }
             let mut per_frame_translations = None;
@@ -217,22 +243,33 @@ impl McsCodec {
         };
         let gltf_json = self.to_gltf_json();
         std::fs::write(path, gltf_json).expect("Failed to write MCS file");
+        info!("Exported MCS file to: {path}");
     }
     /// Create the base empty Mcs structure
     pub fn create_gltf_structure(&self) -> Value {
-        let gltf_json = serde_json::json!(
+        let has_camera_track = self.camera_track.is_some();
+        let mut gltf_json = serde_json::json!(
             { "asset" : { "version" : "2.0", "generator" : "smpl-rs McsCodec Exporter" },
             "scene" : 0, "scenes" : [{ "nodes" : [0], "extensions" : {
             "MC_scene_description" : { "num_frames" : self.num_frames, "smpl_bodies" : []
-            } } }], "nodes" : [{ "name" : "RootNode", "children" : [1] }, { "name" :
-            "AnimatedCamera", "camera" : 0, "translation" : [0.0, 0.0, 0.0], "rotation" :
-            [0.0, 0.0, 0.0, 1.0] }], "cameras" : [{ "type" : "perspective", "perspective"
-            : { "yfov" : self.camera_track.as_ref().unwrap().yfov, "znear" : self
-            .camera_track.as_ref().unwrap().znear, "aspectRatio" : self.camera_track
-            .as_ref().unwrap().aspect_ratio } }], "buffers" : [], "bufferViews" : [],
-            "accessors" : [], "animations" : [], "extensionsUsed" :
-            ["MC_scene_description"] }
+            } } }], "buffers" : [], "bufferViews" : [], "accessors" : [], "animations" :
+            [], "extensionsUsed" : ["MC_scene_description"] }
         );
+        if has_camera_track {
+            gltf_json["nodes"] = serde_json::json!(
+                [{ "name" : "RootNode", "children" : [1] }, { "name" : "AnimatedCamera",
+                "camera" : 0, "translation" : [0.0, 0.0, 0.0], "rotation" : [0.0, 0.0,
+                0.0, 1.0] }]
+            );
+            gltf_json["cameras"] = serde_json::json!(
+                [{ "type" : "perspective", "perspective" : { "yfov" : self.camera_track
+                .as_ref().unwrap().yfov, "znear" : self.camera_track.as_ref().unwrap()
+                .znear, "aspectRatio" : self.camera_track.as_ref().unwrap().aspect_ratio
+                } }]
+            );
+        } else {
+            gltf_json["nodes"] = serde_json::json!([{ "name" : "RootNode" }]);
+        }
         gltf_json
     }
     /// Add SMPL buffers to the Mcs GLTF JSON
@@ -259,6 +296,7 @@ impl McsCodec {
         }
     }
     /// Add camera animation to the Mcs GLTF JSON
+    #[allow(clippy::too_many_lines)]
     pub fn add_camera_animation(&self, gltf_json: &mut Value) {
         let buffers_start_idx = self.smpl_bodies.len();
         let num_frames = self.num_frames;
@@ -268,6 +306,18 @@ impl McsCodec {
         let time_bytes = times.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>();
         let camera_positions = self.camera_track.as_ref().unwrap().per_frame_translations.as_ref().unwrap();
         let camera_rotations = self.camera_track.as_ref().unwrap().per_frame_rotations.as_ref().unwrap();
+        if camera_positions.dim().0 == 1 {
+            if let Some(node) = gltf_json["nodes"].as_array_mut().and_then(|nodes| nodes.get_mut(1)) {
+                node["translation"] = serde_json::json!([camera_positions[[0, 0]], camera_positions[[0, 1]], camera_positions[[0, 2]]]);
+                node["rotation"] = serde_json::json!([
+                    camera_rotations[[0, 0]],
+                    camera_rotations[[0, 1]],
+                    camera_rotations[[0, 2]],
+                    camera_rotations[[0, 3]]
+                ]);
+            }
+            return;
+        }
         let translation_bytes = camera_positions.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>();
         let rotation_bytes = camera_rotations.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>();
         gltf_json["buffers"].as_array_mut().unwrap().extend([
@@ -335,7 +385,9 @@ impl McsCodec {
     pub fn to_gltf_json(&self) -> String {
         let mut gltf_json = self.create_gltf_structure();
         self.add_smpl_buffers_to_gltf(&mut gltf_json);
-        self.add_camera_animation(&mut gltf_json);
+        if self.camera_track.is_some() {
+            self.add_camera_animation(&mut gltf_json);
+        }
         serde_json::to_string_pretty(&gltf_json).unwrap()
     }
 }

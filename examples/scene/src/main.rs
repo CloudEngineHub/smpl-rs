@@ -1,10 +1,13 @@
+use gloss_burn_multibackend::global_backend::init_global_burn_backend;
+use gloss_burn_multibackend::global_backend::GlobalBackend;
+use gloss_renderer::components::Name;
 use gloss_renderer::viewer::Viewer;
 use gloss_renderer::{config::LogLevel, gloss_setup_logger};
 use smpl_core::codec::scene::McsCodec;
 use smpl_core::common::animation::{AnimWrap, AnimationConfig};
 use smpl_core::common::{
     betas::Betas,
-    smpl_model::SmplCacheDynamic,
+    smpl_model::SmplCache,
     types::{Gender, SmplType},
 };
 use smpl_gloss_integration::{
@@ -15,20 +18,25 @@ use smpl_gloss_integration::{
 use std::path::Path;
 fn main() {
     gloss_setup_logger(LogLevel::Info, None);
+    init_global_burn_backend(GlobalBackend::Candle);
     let config_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("config/config.toml");
     let mut viewer = Viewer::new(config_path.to_str());
-    let mut smpl_models = SmplCacheDynamic::default();
+    let mut smpl_models = SmplCache::default();
     smpl_models.set_lazy_loading(SmplType::SmplX, Gender::Neutral, "./data/smplx/SMPLX_neutral_array_f32_slim.npz");
-    let scene_path = "./data/mcs/skate_04.mcs";
+    let scene_path = "data/mcs/football.mcs";
     let mut mcs_codec = McsCodec::from_file(scene_path);
-    let builders = mcs_codec.to_entity_builders();
+    let builders = mcs_codec.to_entity_builders(true);
     for mut builder in builders {
         if !builder.has::<Betas>() {
             builder.add(Betas::default());
         }
         let gloss_interop = GlossInterop::default();
-        let name = viewer.scene.get_unused_name();
-        viewer.scene.get_or_create_entity(&name).insert_builder(builder).insert(gloss_interop);
+        let name = builder.get::<&Name>().unwrap().0.clone();
+        viewer
+            .scene_mut()
+            .get_or_create_entity(&name)
+            .insert_builder(builder)
+            .insert(gloss_interop);
     }
     if let Some(frame_rate) = mcs_codec.frame_rate {
         let config = AnimationConfig {
@@ -37,9 +45,9 @@ fn main() {
             ..Default::default()
         };
         let smpl_scene = SceneAnimation::new_with_config(mcs_codec.num_frames, config);
-        viewer.scene.add_resource(smpl_scene);
+        viewer.scene_mut().add_resource(smpl_scene);
     }
-    viewer.scene.add_resource(smpl_models);
+    viewer.scene_mut().add_resource(smpl_models);
     viewer.insert_plugin(&SmplPlugin::new(true));
     viewer.run();
 }

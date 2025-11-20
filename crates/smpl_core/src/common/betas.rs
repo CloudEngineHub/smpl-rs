@@ -1,4 +1,6 @@
-use crate::codec::codec::SmplCodec;
+use crate::{codec::codec::SmplCodec, AppBackend};
+use burn::{prelude::Backend, tensor::Tensor};
+use gloss_utils::bshare::ToBurn;
 use log::info;
 use ndarray as nd;
 use ndarray::prelude::*;
@@ -7,29 +9,41 @@ use smpl_utils::io::FileLoader;
 use std::io::{Read, Seek};
 /// Component for Smpl Betas or Shape Parameters
 #[derive(Clone)]
-pub struct Betas {
-    pub betas: nd::Array1<f32>,
+pub struct BetasG<B: Backend> {
+    pub device: B::Device,
+    pub betas: Tensor<B, 1>,
 }
-impl Default for Betas {
+impl<B: Backend> Default for BetasG<B> {
     fn default() -> Self {
+        let device = B::Device::default();
         let num_betas = 10;
-        let betas = ndarray::Array1::<f32>::zeros(num_betas);
-        Self { betas }
+        let betas = Tensor::<B, 1>::zeros([num_betas], &device);
+        Self { device, betas }
     }
 }
-impl Betas {
-    pub fn new(betas: nd::Array1<f32>) -> Self {
-        Self { betas }
+impl<B: Backend> BetasG<B> {
+    pub fn new(betas: Tensor<B, 1>) -> Self {
+        Self {
+            device: betas.device(),
+            betas,
+        }
     }
     pub fn new_empty(num_betas: usize) -> Self {
-        let betas = ndarray::Array1::<f32>::zeros(num_betas);
-        Self { betas }
+        let device = B::Device::default();
+        let betas = Tensor::<B, 1>::zeros([num_betas], &device);
+        Self { device, betas }
+    }
+    pub fn new_from_ndarray(betas: nd::Array1<f32>) -> Self {
+        let device = B::Device::default();
+        let betas = betas.into_burn(&device);
+        Self::new(betas)
     }
     /// # Panics
     /// Will panic if the file cannot be read
     #[allow(clippy::cast_possible_truncation)]
     fn new_from_npz_reader<R: Read + Seek>(npz: &mut NpzReader<R>, truncate_nr_betas: Option<usize>) -> Self {
         info!("NPZ keys - {:?}", npz.names().unwrap());
+        let device = B::Device::default();
         let betas: nd::Array1<f64> = npz.by_name("betas").unwrap();
         let mut betas = betas.mapv(|x| x as f32);
         if let Some(truncate_nr_betas) = truncate_nr_betas {
@@ -37,7 +51,8 @@ impl Betas {
                 betas = betas.slice(s![0..truncate_nr_betas]).to_owned();
             }
         }
-        Self { betas }
+        let betas = betas.into_burn(&device);
+        Self { device, betas }
     }
     #[cfg(not(target_arch = "wasm32"))]
     /// # Panics
@@ -57,7 +72,7 @@ impl Betas {
     }
     /// Create a new ``Betas`` component from a ``SmplCodec``
     pub fn new_from_smpl_codec(codec: &SmplCodec) -> Option<Self> {
-        codec.shape_parameters.as_ref().map(|betas| Self { betas: betas.clone() })
+        codec.shape_parameters.as_ref().map(|betas| Self::new_from_ndarray(betas.clone()))
     }
     /// Create a new ``Betas`` component from a ``.smpl`` file
     pub fn new_from_smpl_file(path: &str) -> Option<Self> {
@@ -65,3 +80,4 @@ impl Betas {
         Self::new_from_smpl_codec(&codec)
     }
 }
+pub type Betas = BetasG<AppBackend>;

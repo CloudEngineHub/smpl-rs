@@ -89,5 +89,7 @@ if __name__ == "__main__":
     viewer.run_manual_plugins()
 
     # Create the writer and export as Glb
-    gltf_codec = GltfCodec.from_scene(viewer.get_scene().ptr_idx())
+    gltf_codec = GltfCodec.from_scene(
+        viewer.get_scene().ptr_idx(), export_camera=True, export_shape=True
+    )
     gltf_codec.save("../../../saved/mesh.glb", GltfCompatibilityMode.Unreal)

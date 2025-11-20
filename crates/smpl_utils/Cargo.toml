@@ -13,35 +13,23 @@ keywords.workspace = true
 documentation = "https://docs.rs/smpl-utils"
 
 [dependencies]
-strum = "0.26.3"
-strum_macros = "0.26.3"
+strum.workspace=true
+strum_macros.workspace=true
 ndarray.workspace=true
 num-traits.workspace=true
 nalgebra.workspace=true
 bytemuck.workspace=true
-bytemuck_derive.workspace=true
 gloss-utils.workspace=true
-backtrace.workspace=true
 
 # Burn dependencies for neural network functionality
 burn.workspace=true
 burn-ndarray.workspace=true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1.6"
-console_log = "1.0"
 wasm-bindgen.workspace=true
-wasm-bindgen-futures = "0.4.30"
-web-sys = { version = "0.3", features = [
-    "Request",
-    "RequestInit",
-    "RequestMode",
-    "Response",
-    "Document",
-    "Window",
-    "Element",
-]}
-js-sys = "0.3"
+wasm-bindgen-futures.workspace=true
+web-sys.workspace=true
+js-sys.workspace=true
 
 [lints]
 workspace = true

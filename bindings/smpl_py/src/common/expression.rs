@@ -1,7 +1,9 @@
 use crate::common::types::PyFaceType;
+use gloss_burn_multibackend::backend::MultiDevice;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
+use gloss_utils::bshare::{ToBurn, ToNdArray};
 use ndarray as nd;
 use numpy::PyArrayMethods;
 use numpy::{PyArray1, PyReadonlyArray1, ToPyArray};
@@ -20,12 +22,11 @@ impl PyExpression {
     #[pyo3(text_signature = "(array: NDArray[np.float32], face_type: Optional[FaceType] = None) -> Expression")]
     pub fn new(array: PyReadonlyArray1<f32>, face_type: Option<PyFaceType>) -> Self {
         let expr_coeffs: nd::Array1<f32> = array.to_owned_array();
+        let device = MultiDevice::default();
+        let expr_coeffs = expr_coeffs.to_burn(&device);
         let face_type = face_type.map_or(FaceType::SmplX, FaceType::from);
         Self {
-            inner: Expression {
-                expr_coeffs,
-                expr_type: face_type,
-            },
+            inner: Expression::new(expr_coeffs, face_type),
         }
     }
     #[staticmethod]
@@ -47,6 +48,6 @@ impl PyExpression {
     }
     #[pyo3(text_signature = "($self) -> NDArray[np.float32]")]
     pub fn numpy(&mut self, py: Python<'_>) -> Py<PyArray1<f32>> {
-        self.inner.expr_coeffs.to_pyarray_bound(py).into()
+        self.inner.expr_coeffs.to_ndarray().to_pyarray_bound(py).into()
     }
 }

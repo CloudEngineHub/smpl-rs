@@ -11,7 +11,7 @@ members = [
 authors = ["Radu Alexandru Rosu <alex@meshcapade.com>", "Aman Shenoy <aman@meshcapade.com>"]
 edition = "2021"
 rust-version = "1.85"
-version = "0.7.0"
+version = "0.8.0"
 description = "A suite of SMPL functionality written over gloss"
 license = "MIT"
 repository = "https://github.com/Meshcapade/smpl-rs"
@@ -21,16 +21,20 @@ keywords = ["3d", "graphics", "animation", "smpl", "smplx"]
 # =====================================================================
 [workspace.dependencies]
 # my crates
-smpl-core = { path = "crates/smpl_core", version = "0.7", default-features = false }
-smpl-gloss-integration = { path = "crates/smpl_gloss_integration", version = "0.7", default-features = false }
-smpl-utils = { path = "crates/smpl_utils", version = "0.7", default-features = false }
+smpl-core = { path = "crates/smpl_core", version = "0.8", default-features = false }
+smpl-gloss-integration = { path = "crates/smpl_gloss_integration", version = "0.8", default-features = false }
+smpl-utils = { path = "crates/smpl_utils", version = "0.8", default-features = false }
 
+easy-wgpu = {version = "0.8", default-features = false}
 gloss_py_macros = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-renderer = {version = "0.7", default-features = false}
-gloss-utils = {version = "0.7", default-features = false}
-gloss-img = {version = "0.7", default-features = false}
-gloss-hecs = {version = "0.7", default-features = false}
-gloss-geometry = {version = "0.7", default-features = false}
+gloss-renderer = {version = "0.8", default-features = false}
+gloss-utils = {version = "0.8", default-features = false}
+gloss-img = {version = "0.8", default-features = false}
+gloss-hecs = {version = "0.8", default-features = false}
+gloss-geometry = {version = "0.8", default-features = false}
+gloss-burn-multibackend = {version = "0.8", default-features = false}
+wgpu-burn-interop = {version = "0.8", default-features = false}
+wgpu-burn-global-device = {version = "0.8", default-features = false}
 
 # =====================================================================
 # Third-party crates
@@ -42,9 +46,7 @@ egui = {version = "0.32", default-features = false, features= ["default_fonts"]}
 nalgebra = {version = "0.32", default-features = false, features = ["serde-serialize-no-std"]}
 ndarray-npy = { version = "0.9", default-features = false, features = []}
 ndarray = { version = "0.16"  }
-ndarray-rand = "0.15"
 pollster = "0.3"
-map-range = "0.1"
 wasm-timer = "0.2"
 rangetools = "0.1"
 enum-map = "2.6.0"
@@ -60,24 +62,31 @@ serde_json = "1.0"
 smallvec = "1.11"
 abi_stable = "0.11.3"
 abi_stable_derive = "0.11.3"
+gltf = "1.4.0"
 gltf-json = { version = "1.4.1", features = ["extras", "extensions"] }
 dyn-clone ="1.0"
-burn = {version = "0.18", default-features = false, features=["ndarray", "wgpu", "candle", "std"]}
+burn = {version = "0.18", default-features = false, features=["ndarray", "wgpu", "candle", "autotune"]}
 burn-ndarray = {version = "0.18", default-features = false}
 burn-import ={ version = "0.18", default-features = false, features=["onnx"]} 
 wgpu       = { version = "25.0", default-features = false,  features = ["wgsl", "spirv"] } 
 bytemuck = { version = "1.12", features = [ "derive" ] }
+#egui and half" pull different versions of the getrandom crate transitivelly. And I want to enable the js feature for both:
+# 1) Alias the 0.2.x instance of getrandom, disable default features, turn on "js"
+getrandom02 = { package = "getrandom", version = "0.2", default-features = false, features = ["js"] }
+# 2) Alias the 0.3.x instance of getrandom, disable default features, turn on "js"
+getrandom03 = { package = "getrandom", version = "0.3", default-features = false, features = ["wasm_js"] }
 futures = "0.3"
-bytemuck_derive = "=1.8.1"
-crossbeam-channel = "=0.5.15"
+bytemuck_derive = "1.8"
+crossbeam-channel = "0.5"
 clap = {version = "4.5", features = ["derive"]}
-backtrace = "=0.3.74"
+divan = "0.1"
+
 # =====================================================================
 # Dependencies for wasm https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#added-support-for-the-web
 # =====================================================================
 console_error_panic_hook = "0.1.6"
 console_log = "1.0"
-wasm-bindgen = "=0.2.100"
+wasm-bindgen = "0.2.100"
 wasm-bindgen-futures = "0.4"
 reqwest = { version = "0.12", features = ["json"], default-features = false }
 web-sys = { version = "0.3", features = [
@@ -119,12 +128,12 @@ debug = true
 inherits = "release"
 lto = "thin"
 
-
 # =====================================================================
 [workspace.lints.clippy]
 #we set priority lower so that these lints can overwriteen by other ones with higher priority like the ones we do allow
 all = { level = "deny", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
+
 
 #all the things we do allow. We set higher priority so we overwrite the "all" and "pedantic"
 module_name_repetitions = "allow"  

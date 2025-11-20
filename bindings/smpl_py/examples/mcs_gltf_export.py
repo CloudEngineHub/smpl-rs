@@ -37,7 +37,7 @@ if __name__ == "__main__":
     print(f"Has camera: {mcs_codec.has_camera}")
     print(f"Frame rate: {mcs_codec.frame_rate}")
 
-    entity_builders = mcs_codec.to_entity_builders()
+    entity_builders = mcs_codec.to_entity_builders(with_colors=False)
 
     for current_ent, builder in enumerate(entity_builders):
         entity = viewer.get_or_create_entity(name=f"mcs_entity_{current_ent}")
@@ -54,8 +54,20 @@ if __name__ == "__main__":
     viewer.insert_plugin(SmplPlugin(autorun=False))
     viewer.run_manual_plugins()
 
+    # Re-export the scene as an MCS file
+    scene_ptr_idx = viewer.get_scene().ptr_idx()
+    scene_mcs_codec = McsCodec.from_scene(scene_ptr_idx)
+    scene_mcs_codec.to_file("../../saved/output_scene.mcs")
+
     # Create the writer and export as Glb
     GLTF_SAVE_PATH = "../../saved/mesh.glb"
-    gltf_codec = GltfCodec.from_scene(viewer.get_scene().ptr_idx(), export_camera=True)
+    # from_scene_with_indices should only be used with mcs files
+    # for smpl files, use from_scene instead
+    gltf_codec = GltfCodec.from_scene_with_body_indices(
+        viewer.get_scene().ptr_idx(),
+        body_idxs=[0, 2],
+        export_camera=True,
+        export_shape=False,
+    )
     gltf_codec.save(GLTF_SAVE_PATH, GltfCompatibilityMode.Unreal)
     print(f"Saved glTF to {GLTF_SAVE_PATH}")

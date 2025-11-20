@@ -4,21 +4,32 @@ A minimal example of loading an animated avatar
 """
 
 import os
+import numpy as np
 
+import gloss
 from gloss import Viewer
 from gloss.log import gloss_setup_logger as setup_logger, LogLevel
 
+import smpl_rs
 from smpl_rs import SmplCache
 from smpl_rs.plugins import SmplPlugin
 from smpl_rs.types import SmplType, Gender
 from smpl_rs.components import SmplParams, Betas, Animation, GlossInterop
+from gloss.backend import gloss_init_burn_backend
+from smpl_rs.backend import smplrs_init_burn_backend
+from smpl_rs.backend import smplrs_sync_burn_gpu
+
 
 # Set up the logger
 # To be called only once per process. Can select between Off, Error, Warn, Info, Debug, Trace
 setup_logger(log_level=LogLevel.Info)
+# Initialize the backend used for burn computations
+gloss_init_burn_backend("wgpu")
+smplrs_init_burn_backend("wgpu")
 
 if __name__ == "__main__":
     viewer = Viewer()
+    smplrs_sync_burn_gpu(viewer.get_ptr_gpu())
 
     smpl_body = viewer.get_or_create_entity(name="smpl_body")
 
@@ -33,9 +44,10 @@ if __name__ == "__main__":
 
     # Insert the needed components
     smpl_params = SmplParams.default()
-    betas = Betas.default()
+    # betas = Betas.default()
+    betas = Betas(np.array([0.0, 0.0, 0.0]).astype(np.float32))
     animation = Animation.from_npz(path_anim, fps=100.0, smpl_type=SmplType.SmplH)
-    interop = GlossInterop.default()
+    interop = GlossInterop(with_uv=True)
 
     smpl_body.insert(smpl_params)
     smpl_body.insert(betas)

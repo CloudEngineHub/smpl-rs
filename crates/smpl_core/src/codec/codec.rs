@@ -24,6 +24,7 @@ pub struct SmplCodec {
     pub head_pose: Option<nd::Array3<f32>>,
     pub left_hand_pose: Option<nd::Array3<f32>>,
     pub right_hand_pose: Option<nd::Array3<f32>>,
+    pub vertex_offsets: Option<nd::Array2<f32>>,
 }
 impl Default for SmplCodec {
     fn default() -> Self {
@@ -39,6 +40,7 @@ impl Default for SmplCodec {
             head_pose: None,
             left_hand_pose: None,
             right_hand_pose: None,
+            vertex_offsets: None,
         }
     }
 }
@@ -112,6 +114,9 @@ impl SmplCodec {
         if let Some(right_hand_pose) = &self.right_hand_pose {
             npz.add_array("rightHandPose", right_hand_pose).unwrap();
         }
+        if let Some(vertex_offsets) = &self.vertex_offsets {
+            npz.add_array("vertexOffsets", vertex_offsets).unwrap();
+        }
     }
     fn from_npz_reader<R: Read + Seek>(npz: &mut NpzReader<R>) -> Self {
         let smpl_version_arr: nd::Array0<i32> = npz.by_name("smplVersion").expect("smplVersion.npy should exist and be a int32");
@@ -145,6 +150,7 @@ impl SmplCodec {
         } else {
             None
         };
+        let vertex_offsets: Option<nd::Array2<f32>> = npz.by_name("vertexOffsets").ok();
         Self {
             smpl_version,
             gender,
@@ -157,6 +163,7 @@ impl SmplCodec {
             head_pose,
             left_hand_pose,
             right_hand_pose,
+            vertex_offsets,
         }
     }
     /// # Panics

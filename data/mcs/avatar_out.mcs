@@ -1,0 +1,79 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "Custom Python Exporter"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ],
+      "extensions": {
+        "MC_scene_description": {
+          "num_frames": 1,
+          "smpl_bodies": [
+            {
+              "frame_presence": [
+                0,
+                1
+              ],
+              "bufferView": 0
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "name": "RootNode",
+      "children": [
+        1
+      ]
+    },
+    {
+      "name": "AnimatedCamera",
+      "camera": 0,
+      "translation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "cameras": [
+    {
+      "type": "perspective",
+      "perspective": {
+        "yfov": 0.64519217182021,
+        "znear": 0.01,
+        "aspectRatio": 1.3129251700680271
+      }
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1257,
+      "uri": "data:application/octet-stream;base64,UEsDBC0AAAAIAAAAIQA+3W+D//////////8QABQAY29kZWNWZXJzaW9uLm5weQEAEACEAAAAAAAAAEYAAAAAAAAAm+wX6hsQychQxlCtnpJanFykbqWgbpNpoq6joJ6WX1RSlJgXn1+UkgoSd0vMKU4FihdnJBakAvkamjoKtQoUAS4mBgYGAFBLAwQtAAAACAAAACEAPt1vg///////////DwAUAHNtcGxWZXJzaW9uLm5weQEAEACEAAAAAAAAAEYAAAAAAAAAm+wX6hsQychQxlCtnpJanFykbqWgbpNpoq6joJ6WX1RSlJgXn1+UkgoSd0vMKU4FihdnJBakAvkamjoKtQoUAS4mBgYGAFBLAwQtAAAACAAAACEAtRVmKf//////////CgAUAGdlbmRlci5ucHkBABAAhAAAAAAAAABFAAAAAAAAAJvsF+obEMnIUMZQrZ6SWpxcpG6loG6TaaKuo6Cell9UUpSYF59flJIKEndLzClOBYoXZyQWpAL5Gpo6CrUKFAEuBiAAAFBLAwQtAAAACAAAACEA0HLakf//////////DgAUAGZyYW1lQ291bnQubnB5AQAQAIQAAAAAAAAARgAAAAAAAACb7BfqGxDJyFDGUK2eklqcXKRupaBuk2mirqOgnpZfVFKUmBefX5SSChJ3S8wpTgWKF2ckFqQC+RqaOgq1ChQBLkYGBgYAUEsDBC0AAAAIAAAAIQBIm5DF//////////8MABQAYm9keVBvc2UubnB5AQAQAIgBAAAAAAAAVgEAAAAAAACb7BfqGxDJyFDGUK2eklqcXKRupaBuk2airqOgnpZfVFKUmBefX5SSChJ3S8wpTgWKF2ckFqQC+RqGOgpGRjoKxpo6CrUKZAEuBiTAUbjMzrO5yW7iUx5735NP9otZz94XelphP68Np/2WMPu9Xy8csc1P6LHnNO3ZV3jmhC2HxFN7A4/P+7IWyNhP3q27z/9qp21UJ5ed/UxX++5Wxn0qDl37XG+42b3WfbJnSf4C2wDbF3sPyB6w3fV2kW3jzAf79n6ost30bKPt7xtS++w3ue2daXhzL2P2xX2BM6qs9xeb2ipssrVZkHt6X86+A3tr1oTYMuSL2veecLG1ME3ap/fu7F7ZPg67s117bBeYiu8PmZ6w/2nv292WZw3s5zr42zuYH7J7OyNm37vVXfvu6k21Mzicaif9K8MuKljQLrri016ZdQvsuY6vtHtylNeuYlLvfgBQSwECLQMtAAAACAAAACEAPt1vg0YAAACEAAAAEAAAAAAAAAAAAAAAgAEAAAAAY29kZWNWZXJzaW9uLm5weVBLAQItAy0AAAAIAAAAIQA+3W+DRgAAAIQAAAAPAAAAAAAAAAAAAACAAYgAAABzbXBsVmVyc2lvbi5ucHlQSwECLQMtAAAACAAAACEAtRVmKUUAAACEAAAACgAAAAAAAAAAAAAAgAEPAQAAZ2VuZGVyLm5weVBLAQItAy0AAAAIAAAAIQDQctqRRgAAAIQAAAAOAAAAAAAAAAAAAACAAZABAABmcmFtZUNvdW50Lm5weVBLAQItAy0AAAAIAAAAIQBIm5DFVgEAAIgBAAAMAAAAAAAAAAAAAACAARYCAABib2R5UG9zZS5ucHlQSwUGAAAAAAUABQApAQAAqgMAAAAA"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 1257
+    }
+  ],
+  "accessors": [],
+  "animations": [],
+  "extensionsUsed": [
+    "MC_scene_description"
+  ]
+}

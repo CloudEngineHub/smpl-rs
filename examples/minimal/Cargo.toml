@@ -10,6 +10,7 @@ smpl-core = { path = "../../crates/smpl_core", default-features = false  }
 smpl-gloss-integration = { path = "../../crates/smpl_gloss_integration", default-features = false  }
 smpl-utils = { path = "../../crates/smpl_utils", default-features = false  }
 gloss-renderer = {workspace= true, default-features = false}
+gloss-burn-multibackend = {workspace= true}
 
 #third party
 egui.workspace=true

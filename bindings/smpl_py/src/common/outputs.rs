@@ -1,15 +1,15 @@
-use burn::backend::{candle::CandleDevice, Candle};
+use gloss_burn_multibackend::backend::MultiDevice;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
 use gloss_utils::bshare::{ToBurn, ToNdArray};
 use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray2, ToPyArray};
 use pyo3::prelude::*;
-use smpl_core::common::outputs::{SmplOutputDynamic, SmplOutputPoseTDynamic, SmplOutputPosedDynamic};
+use smpl_core::common::outputs::{SmplOutput, SmplOutputPoseT, SmplOutputPosed};
 #[pyclass(name = "SmplOutputPoseT", module = "smpl_rs.models", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PySmplOutputPoseT {
-    pub inner: SmplOutputPoseTDynamic<Candle>,
+    pub inner: SmplOutputPoseT,
 }
 #[pymethods]
 impl PySmplOutputPoseT {
@@ -25,7 +25,7 @@ impl PySmplOutputPoseT {
 #[pyclass(name = "SmplOutputPosed", module = "smpl_rs.models", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PySmplOutputPosed {
-    pub inner: SmplOutputPosedDynamic<Candle>,
+    pub inner: SmplOutputPosed,
 }
 #[pymethods]
 impl PySmplOutputPosed {
@@ -41,7 +41,7 @@ impl PySmplOutputPosed {
 #[pyclass(name = "SmplOutput", module = "smpl_rs.models", unsendable)]
 #[derive(Clone, PyComponent)]
 pub struct PySmplOutput {
-    pub inner: SmplOutputDynamic<Candle>,
+    pub inner: SmplOutput,
 }
 #[pymethods]
 impl PySmplOutput {
@@ -71,6 +71,7 @@ impl PySmplOutput {
     }
     #[setter]
     fn set_verts(&mut self, v: PyReadonlyArray2<f32>) {
-        self.inner.verts = v.to_owned_array().to_burn(&CandleDevice::Cpu);
+        let device = MultiDevice::default();
+        self.inner.verts = v.to_owned_array().to_burn(&device);
     }
 }

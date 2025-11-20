@@ -1,7 +1,10 @@
 use super::types::{PySmplType, PyUpAxis};
+use gloss_burn_multibackend::backend::MultiDevice;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
 use gloss_renderer::scene::Scene;
+use gloss_utils::bshare::ToBurn;
+use gloss_utils::bshare::ToNdArray;
 use ndarray as nd;
 use numpy::PyArray2;
 use numpy::PyReadonlyArray1;
@@ -35,6 +38,9 @@ impl PyPose {
         let mut joint_poses = joint_poses.clone().into_shape_with_order((joints_3 / 3, 3)).unwrap();
 
         let global_trans: nd::Array1<f32> = global_trans.to_owned_array();
+        let device = MultiDevice::default();
+        let joint_poses = joint_poses.to_burn(&device);
+        let global_trans = global_trans.to_burn(&device);
         Self {
             inner: Pose::new(joint_poses, global_trans, UpAxis::from(up_axis), SmplType::from(smpl_type)),
         }
@@ -42,6 +48,6 @@ impl PyPose {
     #[pyo3(signature = ())]
     #[pyo3(text_signature = "($self) -> NDArray[np.float32]")]
     pub fn joint_poses(&mut self, py: Python<'_>) -> Py<PyArray2<f32>> {
-        self.inner.joint_poses.to_pyarray_bound(py).into()
+        self.inner.joint_poses.to_ndarray().to_pyarray_bound(py).into()
     }
 }

@@ -1,16 +1,21 @@
+use crate::codec::SmplCodecGloss;
 use crate::components::{Follow, FollowParams, Follower, FollowerType, GlossInterop};
-use crate::conversions::update_entity_on_backend;
+use crate::conversions::{update_entity_on_backend, update_entity_on_backend_wgpu};
+use crate::gltf::GltfInteropOptions;
 use crate::scene::SceneAnimation;
-use crate::{codec::SmplCodecGloss, gltf::GltfCodecGloss};
-use burn::backend::{Candle, NdArray, Wgpu};
+use burn::backend::ndarray::NdArrayDevice;
+use burn::backend::NdArray;
 use burn::{
     prelude::*,
     tensor::{Float, Int, Tensor},
 };
 use core::f32;
+use gloss_burn_multibackend::backend::MultiBackend;
+use gloss_burn_multibackend::backend::MultiDevice;
 use gloss_geometry::geom::{self, PerVertexNormalsWeightingType};
 use gloss_hecs::Entity;
 use gloss_hecs::{Changed, CommandBuffer};
+use gloss_renderer::components::{Colors, Faces, Normals, Tangents, UVs};
 use gloss_renderer::plugin_manager::gui::{GuiWindow, GuiWindowType};
 use gloss_renderer::{
     components::{ConfigChanges, ModelMatrix, PosLookat, Renderable, Verts},
@@ -21,7 +26,6 @@ use gloss_renderer::{
     scene::Scene,
 };
 use gloss_utils::abi_stable_aliases::std_types::{RNone, ROption, RString, RVec};
-use gloss_utils::tensor::BurnBackend;
 use gloss_utils::{
     bshare::{ToBurn, ToNalgebraFloat, ToNalgebraInt, ToNdArray},
     nshare::ToNalgebra,
@@ -29,24 +33,23 @@ use gloss_utils::{
 };
 use log::{info, warn};
 use nalgebra::{self as na};
+use smpl_core::codec::gltf::GltfExportOptions;
 use smpl_core::codec::scene::CameraTrack;
 use smpl_core::common::animation::AnimationConfig;
-use smpl_core::common::smpl_model::{FaceModel, SmplCache, SmplModel};
+use smpl_core::common::smpl_model::{SmplCache, SmplModel};
+use smpl_core::common::transform_sequence::TransformSequence;
 use smpl_core::common::types::{FaceType, GltfOutputType, UpAxis};
+use smpl_core::common::vertex_offsets::VertexOffsets;
 use smpl_core::common::{
     animation::Animation,
     betas::Betas,
     expression::{Expression, ExpressionOffsets},
-    smpl_model::SmplCacheDynamic,
+    outputs::SmplOutputPoseT,
+    outputs::SmplOutputPosed,
 };
-use smpl_core::common::{
-    outputs::{SmplOutputPoseTDynamic, SmplOutputPosedDynamic},
-    pose::Pose,
-    pose_corrective::PoseCorrectiveDynamic,
-    pose_override::PoseOverride,
-    smpl_params::SmplParams,
-};
+use smpl_core::common::{pose::Pose, pose_corrective::PoseCorrective, pose_override::PoseOverride, smpl_params::SmplParams};
 use smpl_core::conversions::pose_remap::PoseRemap;
+use smpl_core::AppBackend;
 use smpl_utils::io::FileType;
 /// Check all entities with ``SmplParams`` and lazy load the smpl model if
 /// needed do it in two stages, first checking if we need to acually load
@@ -60,7 +63,7 @@ pub extern "C" fn smpl_lazy_load_model(scene: &mut Scene, _runner: &mut RunnerSt
         let mut needs_loading = false;
         let mut query_state = scene.world.query::<&SmplParams>();
         for (_entity, smpl_params) in query_state.iter() {
-            let smpl_models = scene.get_resource::<&SmplCacheDynamic>().unwrap();
+            let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
             if !smpl_models.has_model(smpl_params.smpl_type, smpl_params.gender)
                 && smpl_models.has_lazy_loading(smpl_params.smpl_type, smpl_params.gender)
             {
@@ -70,7 +73,7 @@ pub extern "C" fn smpl_lazy_load_model(scene: &mut Scene, _runner: &mut RunnerSt
         if needs_loading {
             let mut query_state = scene.world.query::<&SmplParams>();
             for (_entity, smpl_params) in query_state.iter() {
-                let mut smpl_models = scene.get_resource::<&mut SmplCacheDynamic>().unwrap();
+                let mut smpl_models = scene.get_resource::<&mut SmplCache>().unwrap();
                 if !smpl_models.has_model(smpl_params.smpl_type, smpl_params.gender)
                     && smpl_models.has_lazy_loading(smpl_params.smpl_type, smpl_params.gender)
                 {
@@ -183,7 +186,7 @@ pub extern "C" fn smpl_advance_anim(scene: &mut Scene, runner: &mut RunnerState)
                     let is_added = smpl_anim.is_added();
                     smpl_anim.advance(runner.dt(), runner.is_first_time() || is_added);
                 }
-                let anim_frame = smpl_anim.get_current_pose();
+                let anim_frame: Pose = smpl_anim.get_current_pose();
                 command_buffer.insert_one(*entity, anim_frame);
                 if let Some(expression) = smpl_anim.get_current_expression() {
                     command_buffer.insert_one(*entity, expression);
@@ -209,145 +212,113 @@ pub extern "C" fn smpl_advance_anim(scene: &mut Scene, runner: &mut RunnerState)
     command_buffer.run_on(&mut scene.world);
 }
 /// System to compute vertices if Betas has changed.
-/// This internally uses the generic variant of the function suffixed with
-/// ``_on_backend``
 #[allow(clippy::similar_names)]
 #[allow(clippy::too_many_lines)]
 pub extern "C" fn smpl_betas_to_verts(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
-        let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        let changed_models = smpl_models_dynamic.is_changed();
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        let changed_models = smpl_models.is_changed();
         let mut query_state = scene.world.query::<(&SmplParams, &Betas, Changed<Betas>, Changed<SmplParams>)>();
         for (entity, (smpl_params, smpl_betas, changed_betas, changed_smpl_params)) in query_state.iter() {
             if !changed_betas && !changed_smpl_params && !changed_models {
                 continue;
             }
-            match &*smpl_models_dynamic {
-                SmplCacheDynamic::NdArray(model) => betas_to_verts_on_backend::<NdArray>(&mut command_buffer, entity, smpl_params, smpl_betas, model),
-                SmplCacheDynamic::Wgpu(model) => betas_to_verts_on_backend::<Wgpu>(&mut command_buffer, entity, smpl_params, smpl_betas, model),
-                SmplCacheDynamic::Candle(model) => betas_to_verts_on_backend::<Candle>(&mut command_buffer, entity, smpl_params, smpl_betas, model),
-            }
+            let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+            let v_burn_merged = smpl_model.betas2verts(smpl_betas);
+            let joints_t_pose = smpl_model.verts2joints(v_burn_merged.clone());
+            let smpl_output = SmplOutputPoseT {
+                verts: v_burn_merged.clone(),
+                verts_with_expression: v_burn_merged.clone(),
+                verts_without_expression: v_burn_merged,
+                joints: joints_t_pose,
+            };
+            command_buffer.insert_one(entity, smpl_output);
         }
     }
     command_buffer.run_on(&mut scene.world);
 }
-/// Function to compute vertices from betas on a generic Burn Backend. We
-/// currently support - ``Candle``, ``NdArray``, and ``Wgpu``
-#[allow(clippy::too_many_arguments)]
-fn betas_to_verts_on_backend<B: Backend>(
-    command_buffer: &mut CommandBuffer,
-    entity: Entity,
-    smpl_params: &SmplParams,
-    smpl_betas: &Betas,
-    smpl_models: &SmplCache<B>,
-) {
-    let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-    let v_burn_merged = smpl_model.betas2verts(smpl_betas);
-    let joints_t_pose = smpl_model.verts2joints(v_burn_merged.clone());
-    let smpl_output = SmplOutputPoseTDynamic {
-        verts: v_burn_merged.clone(),
-        verts_without_expression: v_burn_merged,
-        joints: joints_t_pose,
-    };
-    command_buffer.insert_one(entity, smpl_output);
-}
 /// System to compute Expression offsets if Expression or ``SmplParams`` have
-/// changed. This internally uses the generic variant of the function suffixed
-/// with ``_on_backend``
+/// changed.
 #[allow(clippy::similar_names)]
 #[allow(unused_mut)]
 pub extern "C" fn smpl_expression_offsets(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
-        let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
 
         let mut query_state = scene
             .world
             .query::<(&SmplParams, &Expression, Changed<Expression>, Changed<SmplParams>)>();
         for (entity, (smpl_params, expression, changed_expression, changed_smpl_params)) in query_state.iter() {
-            if !changed_expression && !changed_smpl_params && !smpl_models_dynamic.is_changed() {
+            if !changed_expression && !changed_smpl_params && !smpl_models.is_changed() {
                 continue;
             }
-            match &*smpl_models_dynamic {
-                SmplCacheDynamic::NdArray(smpl_models) => {
-                    let mut face_model = smpl_models.get_face_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+            let mut face_model = smpl_models.get_face_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
 
-                    expression_offsets_on_backend(&mut command_buffer, entity, expression, face_model);
-                }
-                SmplCacheDynamic::Wgpu(smpl_models) => {
-                    let mut face_model = smpl_models.get_face_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-
-                    expression_offsets_on_backend(&mut command_buffer, entity, expression, face_model);
-                }
-                SmplCacheDynamic::Candle(smpl_models) => {
-                    let mut face_model = smpl_models.get_face_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-
-                    expression_offsets_on_backend(&mut command_buffer, entity, expression, face_model);
-                }
-            }
+            let verts_offsets_merged = face_model.expression2offsets(expression);
+            let expr_offsets = ExpressionOffsets {
+                offsets: verts_offsets_merged,
+            };
+            command_buffer.insert_one(entity, expr_offsets);
         }
     }
     command_buffer.run_on(&mut scene.world);
 }
-/// Function to compute expression offsets on a generic Burn Backend. We
-/// currently support - ``Candle``, ``NdArray``, and ``Wgpu``
-#[allow(clippy::too_many_arguments)]
-fn expression_offsets_on_backend<B: Backend>(
-    command_buffer: &mut CommandBuffer,
-    entity: Entity,
-    expression: &Expression,
-    face_model: &dyn FaceModel<B>,
-) {
-    let verts_offsets_merged = face_model.expression2offsets(expression);
-    let expr_offsets = ExpressionOffsets {
-        offsets: verts_offsets_merged,
-    };
-    command_buffer.insert_one(entity, expr_offsets);
-}
 /// System to apply the expression offsets.
-/// This internally uses the generic variant of the function suffixed with
-/// ``_on_backend``
 #[allow(clippy::too_many_lines)]
 pub extern "C" fn smpl_expression_apply(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
-        let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        match &*smpl_models_dynamic {
-            SmplCacheDynamic::NdArray(smpl_models_nd) => {
-                apply_expression_on_backend::<NdArray>(scene, &mut command_buffer, smpl_models_nd);
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        let mut query_state = scene.world.query::<(
+            &SmplParams,
+            &mut SmplOutputPoseT,
+            &ExpressionOffsets,
+            Changed<SmplOutputPoseT>,
+            Changed<ExpressionOffsets>,
+            Changed<SmplParams>,
+        )>();
+        for (entity, (smpl_params, mut smpl_t_output, expression_offsets, changed_smpl_t, changed_expression, changed_params)) in query_state.iter() {
+            if !changed_smpl_t && !changed_expression && !changed_params {
+                continue;
             }
-            SmplCacheDynamic::Wgpu(smpl_models_wgpu) => {
-                apply_expression_on_backend::<Wgpu>(scene, &mut command_buffer, smpl_models_wgpu);
-            }
-            SmplCacheDynamic::Candle(smpl_models_cndl) => {
-                apply_expression_on_backend::<Candle>(scene, &mut command_buffer, smpl_models_cndl);
-            }
+            let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+            smpl_t_output.verts = smpl_t_output.verts_without_expression.clone() + expression_offsets.offsets.clone();
+            smpl_t_output.joints = smpl_model.verts2joints(smpl_t_output.verts.clone());
+            command_buffer.insert_one(entity, smpl_t_output.clone());
         }
     }
     command_buffer.run_on(&mut scene.world);
 }
-/// Function to apply expression offsets on a generic Burn Backend. We currently
-/// support - ``Candle``, ``NdArray``, and ``Wgpu``
-#[allow(clippy::too_many_arguments)]
-fn apply_expression_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut CommandBuffer, smpl_models: &SmplCache<B>) {
-    let mut query_state = scene.world.query::<(
-        &SmplParams,
-        &mut SmplOutputPoseTDynamic<B>,
-        &ExpressionOffsets<B>,
-        Changed<SmplOutputPoseTDynamic<B>>,
-        Changed<ExpressionOffsets<B>>,
-        Changed<SmplParams>,
-    )>();
-    for (entity, (smpl_params, mut smpl_t_output, expression_offsets, changed_smpl_t, changed_expression, changed_params)) in query_state.iter() {
-        if !changed_smpl_t && !changed_expression && !changed_params {
-            continue;
+/// System to apply the free vertex offsets.
+/// This internally uses the generic variant of the function suffixed with
+/// ``_on_backend``
+#[allow(clippy::too_many_lines)]
+pub extern "C" fn smpl_vertex_offset_apply(scene: &mut Scene, _runner: &mut RunnerState) {
+    let mut command_buffer = CommandBuffer::new();
+    {
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        let mut query_state = scene.world.query::<(
+            &SmplParams,
+            &mut SmplOutputPoseT,
+            &VertexOffsets,
+            Changed<SmplOutputPoseT>,
+            Changed<VertexOffsets>,
+            Changed<SmplParams>,
+        )>();
+        for (entity, (smpl_params, mut smpl_t_output, vertex_offsets, changed_smpl_t, changed_vertex_offsets, changed_params)) in query_state.iter() {
+            if !changed_smpl_t && !changed_vertex_offsets && !changed_params {
+                continue;
+            }
+            let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+            smpl_t_output.verts =
+                smpl_t_output.verts_with_expression.clone() + vertex_offsets.strength * vertex_offsets.offsets.clone().to_burn(&smpl_model.device());
+            smpl_t_output.joints = smpl_model.verts2joints(smpl_t_output.verts.clone());
+            command_buffer.insert_one(entity, smpl_t_output.clone());
         }
-        let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-        smpl_t_output.verts = smpl_t_output.verts_without_expression.clone() + expression_offsets.offsets.clone();
-        smpl_t_output.joints = smpl_model.verts2joints(smpl_t_output.verts.clone());
-        command_buffer.insert_one(entity, smpl_t_output.clone());
     }
+    command_buffer.run_on(&mut scene.world);
 }
 /// System to remap the ``SmplType`` of a pose to the ``SmplType`` found in
 /// ``SmplParams``
@@ -397,109 +368,78 @@ pub extern "C" fn smpl_make_dummy_pose(scene: &mut Scene, _runner: &mut RunnerSt
     command_buffer.run_on(&mut scene.world);
 }
 /// System for computing and applying pose correctives given a pose
-/// This internally uses the generic variant of the function suffixed with
-/// ``_on_backend``
 #[allow(clippy::similar_names)]
 #[allow(clippy::too_many_lines)]
 pub extern "C" fn smpl_compute_pose_correctives(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
-        let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        let smpl_models_changed = smpl_models_dynamic.is_changed();
-        match &*smpl_models_dynamic {
-            SmplCacheDynamic::NdArray(smpl_models_ndarray) => {
-                compute_pose_correctives_on_backend::<NdArray>(scene, &mut command_buffer, smpl_models_ndarray, smpl_models_changed);
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        let smpl_models_changed = smpl_models.is_changed();
+        let mut query_state = scene.world.query::<(&SmplParams, &mut Pose, Changed<Pose>, Changed<SmplParams>)>();
+        for (entity, (smpl_params, smpl_pose, changed_pose, changed_smpl_params)) in query_state.iter() {
+            if (!changed_pose && !changed_smpl_params && !smpl_models_changed) || !smpl_params.enable_pose_corrective {
+                continue;
             }
-            SmplCacheDynamic::Wgpu(smpl_models_wgpu) => {
-                compute_pose_correctives_on_backend::<Wgpu>(scene, &mut command_buffer, smpl_models_wgpu, smpl_models_changed);
-            }
-            SmplCacheDynamic::Candle(smpl_models_candle) => {
-                compute_pose_correctives_on_backend::<Candle>(scene, &mut command_buffer, smpl_models_candle, smpl_models_changed);
-            }
+            let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+            let verts_offset = smpl_model.compute_pose_correctives(&smpl_pose);
+            command_buffer.insert_one(entity, PoseCorrective { verts_offset });
         }
     }
     command_buffer.run_on(&mut scene.world);
 }
-/// Function to compute pose correctives given a pose on a generic Burn Backend.
-/// We currently support - ``Candle``, ``NdArray``, and ``Wgpu``
-#[allow(clippy::too_many_arguments)]
-fn compute_pose_correctives_on_backend<B: Backend>(
-    scene: &Scene,
-    command_buffer: &mut CommandBuffer,
-    smpl_models: &SmplCache<B>,
-    smpl_models_changed: bool,
-) {
-    let mut query_state = scene.world.query::<(&SmplParams, &mut Pose, Changed<Pose>, Changed<SmplParams>)>();
-    for (entity, (smpl_params, smpl_pose, changed_pose, changed_smpl_params)) in query_state.iter() {
-        if (!changed_pose && !changed_smpl_params && !smpl_models_changed) || !smpl_params.enable_pose_corrective {
-            continue;
-        }
-        let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-        let verts_offset = smpl_model.compute_pose_correctives(&smpl_pose);
-        command_buffer.insert_one(entity, PoseCorrectiveDynamic::<B> { verts_offset });
-    }
-}
 /// System for applying a pose to the given template
-/// This internally uses the generic variant of the function suffixed with
-/// ``_on_backend``
 #[allow(clippy::too_many_lines)]
 pub extern "C" fn smpl_apply_pose(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
-        let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        match &*smpl_models_dynamic {
-            SmplCacheDynamic::NdArray(smpl_models_ndarray) => {
-                apply_pose_on_backend::<NdArray>(scene, &mut command_buffer, smpl_models_ndarray);
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        let mut query_state = scene.world.query::<(
+            &SmplParams,
+            &mut SmplOutputPoseT,
+            &mut Pose,
+            Option<&PoseCorrective>,
+            Changed<Pose>,
+            Changed<SmplOutputPoseT>,
+            Changed<SmplParams>,
+        )>();
+        for (entity, (smpl_params, smpl_t_output, smpl_pose, pose_corrective, changed_pose, changed_t_output, changed_smpl_params)) in
+            query_state.iter()
+        {
+            if !changed_pose && !changed_t_output && !changed_smpl_params {
+                continue;
             }
-            SmplCacheDynamic::Wgpu(smpl_models_wgpu) => {
-                apply_pose_on_backend::<Wgpu>(scene, &mut command_buffer, smpl_models_wgpu);
+            let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+            let lbs_weights_merged = smpl_model.lbs_weights();
+            let mut verts_burn_merged = smpl_t_output.verts.clone();
+            let joints_t_pose = &smpl_t_output.joints;
+            let new_pose = smpl_pose.clone();
+            if let Some(pose_corrective) = pose_corrective {
+                if smpl_params.enable_pose_corrective {
+                    let v_offset_merged = &pose_corrective.verts_offset;
+                    verts_burn_merged = verts_burn_merged.add(v_offset_merged.clone());
+                }
             }
-            SmplCacheDynamic::Candle(smpl_models_candle) => {
-                apply_pose_on_backend::<Candle>(scene, &mut command_buffer, smpl_models_candle);
-            }
+            let (verts_posed_nd, joints_posed) = smpl_model.apply_pose(&verts_burn_merged, joints_t_pose, &lbs_weights_merged, &new_pose);
+            command_buffer.insert_one(
+                entity,
+                SmplOutputPosed {
+                    verts: verts_posed_nd,
+                    joints: joints_posed,
+                },
+            );
         }
     }
     command_buffer.run_on(&mut scene.world);
 }
-/// Function for applying pose on a generic Burn Backend. We currently support -
-/// ``Candle``, ``NdArray``, and ``Wgpu``
-#[allow(clippy::too_many_arguments)]
-fn apply_pose_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut CommandBuffer, smpl_models: &SmplCache<B>) {
-    let mut query_state = scene.world.query::<(
-        &SmplParams,
-        &mut SmplOutputPoseTDynamic<B>,
-        &mut Pose,
-        Option<&PoseCorrectiveDynamic<B>>,
-        Changed<Pose>,
-        Changed<SmplOutputPoseTDynamic<B>>,
-        Changed<SmplParams>,
-    )>();
-    for (entity, (smpl_params, smpl_t_output, smpl_pose, pose_corrective, changed_pose, changed_t_output, changed_smpl_params)) in query_state.iter()
-    {
-        if !changed_pose && !changed_t_output && !changed_smpl_params {
-            continue;
-        }
-        let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-        let lbs_weights_merged = smpl_model.lbs_weights();
-        let mut verts_burn_merged = smpl_t_output.verts.clone();
-        let joints_t_pose = &smpl_t_output.joints;
-        let new_pose = smpl_pose.clone();
-        if let Some(pose_corrective) = pose_corrective {
-            if smpl_params.enable_pose_corrective {
-                let v_offset_merged = &pose_corrective.verts_offset;
-                verts_burn_merged = verts_burn_merged.add(v_offset_merged.clone());
-            }
-        }
-        let (verts_posed_nd, _, _, joints_posed) =
-            smpl_model.apply_pose(&verts_burn_merged, None, None, joints_t_pose, &lbs_weights_merged, &new_pose);
-        command_buffer.insert_one(
-            entity,
-            SmplOutputPosedDynamic {
-                verts: verts_posed_nd,
-                joints: joints_posed,
-            },
-        );
-    }
+/// Convert a float tensor from Router to `NdArray`.
+pub fn to_ndarray<const D: usize>(t: &Tensor<AppBackend, D>) -> Tensor<NdArray, D> {
+    let data = t.to_data().convert::<<NdArray as Backend>::FloatElem>();
+    Tensor::<NdArray, D>::from_data(data, &NdArrayDevice::default())
+}
+/// Same idea for int tensors, if you ever need it.
+pub fn to_ndarray_int<const D: usize>(t: &Tensor<AppBackend, D, Int>) -> Tensor<NdArray, D, Int> {
+    let data = t.to_data().convert::<<NdArray as Backend>::IntElem>();
+    Tensor::<NdArray, D, Int>::from_data(data, &NdArrayDevice::default())
 }
 /// System to convert ``SmplOutput`` components to gloss components (``Verts``,
 /// ``Faces``, ``Normals``, etc.) for the ``upload_pass``
@@ -507,88 +447,53 @@ fn apply_pose_on_backend<B: Backend>(scene: &Scene, command_buffer: &mut Command
 pub extern "C" fn smpl_to_gloss_mesh(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
-        let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        match &*smpl_models_dynamic {
-            SmplCacheDynamic::NdArray(smpl_models_ndarray) => {
-                let mut query_state = scene.world.query::<(
-                    &SmplParams,
-                    &SmplOutputPosedDynamic<NdArray>,
-                    Changed<SmplOutputPosedDynamic<NdArray>>,
-                    &GlossInterop,
-                )>();
-                for (entity, (smpl_params, smpl_output, changed_output, gloss_interop)) in query_state.iter() {
-                    if !changed_output && !smpl_models_dynamic.is_changed() {
-                        continue;
-                    }
-                    let smpl_model = smpl_models_ndarray.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-                    let (verts, uv, normals, tangents, faces) = compute_common_mesh_data(smpl_model, &smpl_output.verts, gloss_interop.with_uv);
-                    update_entity_on_backend(
-                        entity,
-                        scene,
-                        &mut command_buffer,
-                        gloss_interop.with_uv,
-                        &DynamicTensorFloat2D::NdArray(verts),
-                        &DynamicTensorFloat2D::NdArray(normals),
-                        tangents.map(DynamicTensorFloat2D::NdArray),
-                        DynamicTensorFloat2D::NdArray(uv),
-                        DynamicTensorInt2D::NdArray(faces),
-                        smpl_model,
-                    );
-                }
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        let gpu = scene.get_resource::<&easy_wgpu::gpu::Gpu>();
+        let mut query_state = scene.world.query::<(
+            &SmplParams,
+            &SmplOutputPosed,
+            &GlossInterop,
+            Changed<SmplOutputPosed>,
+            Changed<GlossInterop>,
+        )>();
+        for (entity, (smpl_params, smpl_output, gloss_interop, changed_output, changed_gloss_interop)) in query_state.iter() {
+            if !changed_output && !changed_gloss_interop && !smpl_models.is_changed() {
+                continue;
             }
-            SmplCacheDynamic::Wgpu(smpl_models_wgpu) => {
-                let mut query_state = scene.world.query::<(
-                    &SmplParams,
-                    &SmplOutputPosedDynamic<Wgpu>,
-                    Changed<SmplOutputPosedDynamic<Wgpu>>,
-                    &GlossInterop,
-                )>();
-                for (entity, (smpl_params, smpl_output, changed_output, gloss_interop)) in query_state.iter() {
-                    if !changed_output && !smpl_models_dynamic.is_changed() {
-                        continue;
-                    }
-                    let smpl_model = smpl_models_wgpu.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-                    let (verts, uv, normals, tangents, faces) = compute_common_mesh_data(smpl_model, &smpl_output.verts, gloss_interop.with_uv);
-                    update_entity_on_backend(
-                        entity,
-                        scene,
-                        &mut command_buffer,
-                        gloss_interop.with_uv,
-                        &DynamicTensorFloat2D::Wgpu(verts),
-                        &DynamicTensorFloat2D::Wgpu(normals),
-                        tangents.map(DynamicTensorFloat2D::Wgpu),
-                        DynamicTensorFloat2D::Wgpu(uv),
-                        DynamicTensorInt2D::Wgpu(faces),
-                        smpl_model,
-                    );
-                }
-            }
-            SmplCacheDynamic::Candle(smpl_models_candle) => {
-                let mut query_state = scene.world.query::<(
-                    &SmplParams,
-                    &SmplOutputPosedDynamic<Candle>,
-                    Changed<SmplOutputPosedDynamic<Candle>>,
-                    &GlossInterop,
-                )>();
-                for (entity, (smpl_params, smpl_output, changed_output, gloss_interop)) in query_state.iter() {
-                    if !changed_output && !smpl_models_dynamic.is_changed() {
-                        continue;
-                    }
-                    let smpl_model = smpl_models_candle.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-                    let (verts, uv, normals, tangents, faces) = compute_common_mesh_data(smpl_model, &smpl_output.verts, gloss_interop.with_uv);
-                    update_entity_on_backend(
-                        entity,
-                        scene,
-                        &mut command_buffer,
-                        gloss_interop.with_uv,
-                        &DynamicTensorFloat2D::Candle(verts),
-                        &DynamicTensorFloat2D::Candle(normals),
-                        tangents.map(DynamicTensorFloat2D::Candle),
-                        DynamicTensorFloat2D::Candle(uv),
-                        DynamicTensorInt2D::Candle(faces),
-                        smpl_model,
-                    );
-                }
+            let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
+            let (verts, uv, normals, tangents, faces) = compute_common_mesh_data(smpl_model, &smpl_output.verts, gloss_interop.with_uv);
+            let device = verts.device();
+            if let MultiDevice::Wgpu(_) = device {
+                update_entity_on_backend_wgpu(
+                    entity,
+                    scene,
+                    gpu.as_ref().unwrap(),
+                    &mut command_buffer,
+                    gloss_interop.with_uv,
+                    &verts,
+                    &normals,
+                    tangents,
+                    &uv,
+                    &faces,
+                );
+            } else {
+                let verts = to_ndarray(&verts);
+                let normals = to_ndarray(&normals);
+                let tangents = tangents.map(|t: Tensor<AppBackend, 2>| to_ndarray(&t));
+                let uv = to_ndarray(&uv);
+                let faces = to_ndarray_int(&faces);
+                update_entity_on_backend(
+                    entity,
+                    scene,
+                    &mut command_buffer,
+                    gloss_interop.with_uv,
+                    &DynamicTensorFloat2D::NdArray(verts),
+                    &DynamicTensorFloat2D::NdArray(normals),
+                    tangents.map(DynamicTensorFloat2D::NdArray),
+                    DynamicTensorFloat2D::NdArray(uv),
+                    DynamicTensorInt2D::NdArray(faces),
+                    smpl_model,
+                );
             }
         }
     }
@@ -604,8 +509,12 @@ type MeshDataResult<B> = (
 );
 /// Function to compute data like Normals and Tangents on a generic Burn
 /// Backend. We currently support - ``Candle``, ``NdArray``, and ``Wgpu``
-fn compute_common_mesh_data<B: Backend>(smpl_model: &dyn SmplModel<B>, verts_burn: &Tensor<B, 2, Float>, with_uv: bool) -> MeshDataResult<B> {
-    let device_str = format!("{:?}", verts_burn.device());
+fn compute_common_mesh_data(
+    smpl_model: &dyn SmplModel<MultiBackend>,
+    verts_burn: &Tensor<MultiBackend, 2, Float>,
+    with_uv: bool,
+) -> MeshDataResult<MultiBackend> {
+    let device: gloss_burn_multibackend::backend::MultiDevice = verts_burn.device();
     let mapping = smpl_model.idx_split_2_merged();
     let verts_final_burn = if with_uv {
         verts_burn.clone().select(0, mapping.clone())
@@ -614,13 +523,16 @@ fn compute_common_mesh_data<B: Backend>(smpl_model: &dyn SmplModel<B>, verts_bur
     };
     let uv_burn = smpl_model.uv().clone();
     let faces_burn = smpl_model.faces();
-    let normals_merged_burn = match device_str.as_str() {
-        "Cpu" => geom::compute_per_vertex_normals(
+    let normals_merged_burn = match device {
+        MultiDevice::Candle(_) => geom::compute_per_vertex_normals(
             &verts_burn.to_nalgebra(),
             &faces_burn.to_nalgebra(),
             &PerVertexNormalsWeightingType::Uniform,
         )
         .to_burn(&verts_burn.device()),
+        MultiDevice::Wgpu(_) => {
+            gloss_geometry::cubecl::compute_per_vertex_normals_cubecl(verts_burn.clone(), faces_burn.clone(), &smpl_model.vertex_face_csr().unwrap())
+        }
         _ => geom::compute_per_vertex_normals_burn(verts_burn, faces_burn, &PerVertexNormalsWeightingType::Uniform),
     };
     let normals_final_burn = if with_uv {
@@ -629,8 +541,8 @@ fn compute_common_mesh_data<B: Backend>(smpl_model: &dyn SmplModel<B>, verts_bur
         normals_merged_burn
     };
     let tangents_burn = if with_uv {
-        match device_str.as_str() {
-            "Cpu" => Some(
+        match device {
+            MultiDevice::Candle(_) => Some(
                 geom::compute_tangents(
                     &verts_final_burn.to_nalgebra(),
                     &smpl_model.faces_uv().to_nalgebra(),
@@ -639,6 +551,13 @@ fn compute_common_mesh_data<B: Backend>(smpl_model: &dyn SmplModel<B>, verts_bur
                 )
                 .to_burn(&verts_burn.device()),
             ),
+            MultiDevice::Wgpu(_) => Some(gloss_geometry::cubecl::compute_tangents_cubecl(
+                verts_final_burn.clone(),
+                smpl_model.faces_uv().clone(),
+                normals_final_burn.clone(),
+                smpl_model.uv().clone(),
+                &smpl_model.vertex_face_uv_csr().unwrap(),
+            )),
             _ => Some(geom::compute_tangents_burn(
                 &verts_final_burn,
                 smpl_model.faces_uv(),
@@ -653,44 +572,29 @@ fn compute_common_mesh_data<B: Backend>(smpl_model: &dyn SmplModel<B>, verts_bur
     (verts_final_burn, uv_burn, normals_final_burn, tangents_burn, faces_burn.clone())
 }
 /// System to align a mesh at every frame to the floor
-/// This internally uses the generic variant of the function suffixed with
-/// ``_on_backend``
 #[allow(clippy::too_many_lines)]
 pub extern "C" fn smpl_align_vertical(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
-    let backend = {
-        let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        smpl_models_dynamic.get_backend()
-    };
-    match backend {
-        BurnBackend::NdArray => align_vertical_on_backend::<NdArray>(scene),
-        BurnBackend::Wgpu => align_vertical_on_backend::<Wgpu>(scene),
-        BurnBackend::Candle => align_vertical_on_backend::<Candle>(scene),
-    }
-    command_buffer.run_on(&mut scene.world);
-}
-fn align_vertical_on_backend<B: Backend>(scene: &Scene) {
-    let mut query_state = scene
-        .world
-        .query::<(&Verts, &mut ModelMatrix, Changed<SmplOutputPoseTDynamic<B>>)>()
-        .with::<&SmplParams>();
-    for (_entity, (verts, mut model_matrix, changed_t_pose)) in query_state.iter() {
-        if changed_t_pose {
-            let verts_world = geom::transform_verts(&verts.0.to_dmatrix(), &model_matrix.0);
-            let min_y = verts_world.column(1).min();
-            model_matrix.0.append_translation_mut(&na::Translation3::<f32>::new(0.0, -min_y, 0.0));
+    {
+        let mut query_state = scene
+            .world
+            .query::<(&Verts, &mut ModelMatrix, Changed<SmplOutputPoseT>)>()
+            .with::<&SmplParams>();
+        for (_entity, (verts, mut model_matrix, changed_t_pose)) in query_state.iter() {
+            if changed_t_pose {
+                let verts_world = geom::transform_verts(&verts.0.to_dmatrix(), &model_matrix.0);
+                let min_y = verts_world.column(1).min();
+                model_matrix.0.append_translation_mut(&na::Translation3::<f32>::new(0.0, -min_y, 0.0));
+            }
         }
     }
+    command_buffer.run_on(&mut scene.world);
 }
 /// System for follower computations
 #[allow(clippy::cast_precision_loss)]
 pub extern "C" fn smpl_follow_anim(scene: &mut Scene, runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
-        let backend = {
-            let smpl_models_dynamic = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-            smpl_models_dynamic.get_backend()
-        };
         let Ok(mut follow) = scene.get_resource::<&mut Follower>() else {
             return;
         };
@@ -703,28 +607,8 @@ pub extern "C" fn smpl_follow_anim(scene: &mut Scene, runner: &mut RunnerState) 
             } else {
                 ModelMatrix::default().0
             };
-            let ent_goal = match backend {
-                BurnBackend::NdArray => {
-                    if let Some(point) = handle_goal_for_backend::<NdArray>(scene, entity, model_matrix) {
-                        point
-                    } else {
-                        continue;
-                    }
-                }
-                BurnBackend::Wgpu => {
-                    if let Some(point) = handle_goal_for_backend::<Wgpu>(scene, entity, model_matrix) {
-                        point
-                    } else {
-                        continue;
-                    }
-                }
-                BurnBackend::Candle => {
-                    if let Some(point) = handle_goal_for_backend::<Candle>(scene, entity, model_matrix) {
-                        point
-                    } else {
-                        continue;
-                    }
-                }
+            let Some(ent_goal) = compute_follower_goal(scene, entity, model_matrix) else {
+                continue;
             };
             goal.coords += ent_goal.coords;
             num_ents += 1;
@@ -778,9 +662,9 @@ pub extern "C" fn smpl_follow_anim(scene: &mut Scene, runner: &mut RunnerState) 
     }
     command_buffer.run_on(&mut scene.world);
 }
-fn handle_goal_for_backend<B: Backend>(scene: &Scene, entity: Entity, model_matrix: na::SimilarityMatrix3<f32>) -> Option<na::Point3<f32>> {
-    if scene.world.has::<SmplOutputPosedDynamic<B>>(entity).unwrap() {
-        let output_posed = scene.world.get::<&SmplOutputPosedDynamic<B>>(entity).unwrap();
+fn compute_follower_goal(scene: &Scene, entity: Entity, model_matrix: na::SimilarityMatrix3<f32>) -> Option<na::Point3<f32>> {
+    if scene.world.has::<SmplOutputPosed>(entity).unwrap() {
+        let output_posed = scene.world.get::<&SmplOutputPosed>(entity).unwrap();
         let joints_ndarray = output_posed.joints.to_ndarray();
         let pose_trans = joints_ndarray.row(0).into_nalgebra();
         let point = pose_trans.fixed_rows::<3>(0).clone_owned();
@@ -794,6 +678,22 @@ fn handle_goal_for_backend<B: Backend>(scene: &Scene, entity: Entity, model_matr
     } else {
         None
     }
+}
+/// System to apply global transforms to props in the scene
+#[allow(clippy::too_many_lines)]
+pub extern "C" fn prop_transform_sequence(scene: &mut Scene, _runner: &mut RunnerState) {
+    let mut command_buffer = CommandBuffer::new();
+    {
+        if let Ok(scene_anim) = scene.get_resource::<&mut SceneAnimation>() {
+            let current_time = scene_anim.runner.anim_current_time.as_secs_f32();
+            let mut query_state = scene.world.query::<&TransformSequence>();
+            for (entity, transform_sequence) in query_state.iter() {
+                let mm = transform_sequence.get_transform_at_time(current_time, scene_anim.config.fps);
+                command_buffer.insert_one(entity, mm);
+            }
+        }
+    }
+    command_buffer.run_on(&mut scene.world);
 }
 /// Hides the floor if the camera is below it
 pub extern "C" fn hide_floor_when_viewed_from_below(scene: &mut Scene, _runner: &mut RunnerState) {
@@ -833,6 +733,7 @@ pub extern "C" fn hide_floor_when_viewed_from_below(scene: &mut Scene, _runner: 
 #[allow(clippy::too_many_lines)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_params_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+    use crate::gltf::GltfCodecGloss;
     use crate::scene::McsCodecGloss;
     use gloss_renderer::plugin_manager::gui::Button;
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
@@ -855,40 +756,39 @@ pub extern "C" fn smpl_params_gui(selected_entity: &ROption<Entity>, scene: &mut
         codec.to_file("./saved/output.mcs");
     }
     extern "C" fn save_gltf_smpl(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
-        let mut codec = GltfCodec::from_scene(scene, None, true);
+        let mut codec = GltfCodec::from_scene(scene, &GltfInteropOptions::default());
         let now = wasm_timer::Instant::now();
         codec.to_file(
             "Meshcapade Avatar",
             "./saved/output.gltf",
-            GltfOutputType::Standard,
-            GltfCompatibilityMode::Smpl,
-            FaceType::SmplX,
+            &GltfExportOptions {
+                out_type: GltfOutputType::Standard,
+                ..Default::default()
+            },
         );
-        codec.to_file(
-            "Meshcapade Avatar",
-            "./saved/output.glb",
-            GltfOutputType::Binary,
-            GltfCompatibilityMode::Smpl,
-            FaceType::SmplX,
-        );
+        codec.to_file("Meshcapade Avatar", "./saved/output.glb", &GltfExportOptions::default());
         info!("Time taken for Smpl mode `.gltf` export: {:?}", now.elapsed());
     }
     extern "C" fn save_gltf_unreal(_widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
-        let mut codec = GltfCodec::from_scene(scene, None, true);
+        let mut codec = GltfCodec::from_scene(scene, &GltfInteropOptions::default());
         let now = wasm_timer::Instant::now();
         codec.to_file(
             "Meshcapade Avatar",
             "./saved/output.gltf",
-            GltfOutputType::Standard,
-            GltfCompatibilityMode::Unreal,
-            FaceType::ARKit,
+            &GltfExportOptions {
+                out_type: GltfOutputType::Standard,
+                compatibility_mode: GltfCompatibilityMode::Unreal,
+                face_type: FaceType::ARKit,
+            },
         );
         codec.to_file(
             "Meshcapade Avatar",
             "./saved/output.glb",
-            GltfOutputType::Binary,
-            GltfCompatibilityMode::Unreal,
-            FaceType::ARKit,
+            &GltfExportOptions {
+                out_type: GltfOutputType::Binary,
+                compatibility_mode: GltfCompatibilityMode::Unreal,
+                face_type: FaceType::ARKit,
+            },
         );
         info!("Time taken for Unreal mode `.gltf` export: {:?}", now.elapsed());
     }
@@ -942,19 +842,21 @@ pub extern "C" fn smpl_params_gui(selected_entity: &ROption<Entity>, scene: &mut
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_betas_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
+    #[allow(clippy::range_plus_one)]
     extern "C" fn beta_slider_change(new_val: f32, widget_name: &RString, entity: &Entity, scene: &mut Scene) {
         let beta_idx: usize = widget_name.split(' ').next_back().unwrap().parse().unwrap();
         if let Ok(mut betas) = scene.world.get::<&mut Betas>(*entity) {
-            betas.betas[beta_idx] = new_val;
+            betas.betas = betas.betas.clone().slice_fill(beta_idx..beta_idx + 1, new_val);
         }
     }
     let mut widgets = RVec::new();
+    #[allow(clippy::range_plus_one)]
     if let RSome(entity) = selected_entity {
         if let Ok(betas) = scene.world.get::<&Betas>(*entity) {
-            for i in 0..betas.betas.len() {
+            for i in 0..betas.betas.dims()[0] {
                 let slider = Slider::new(
                     ("Beta ".to_owned() + &i.to_string()).as_str(),
-                    betas.betas[i],
+                    betas.betas.clone().slice(i..i + 1).into_scalar(),
                     -5.0,
                     5.0,
                     RSome(80.0),
@@ -978,6 +880,7 @@ pub extern "C" fn smpl_betas_gui(selected_entity: &ROption<Entity>, scene: &mut 
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_expression_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
     use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
+    #[allow(clippy::range_plus_one)]
     extern "C" fn expr_slider_change(new_val: f32, widget_name: &RString, entity: &Entity, scene: &mut Scene) {
         if let Ok(mut expression) = scene.world.get::<&mut Expression>(*entity) {
             #[allow(unused_mut)]
@@ -986,7 +889,7 @@ pub extern "C" fn smpl_expression_gui(selected_entity: &ROption<Entity>, scene: 
                 coeff_idx = idx;
             }
 
-            expression.expr_coeffs[coeff_idx] = new_val;
+            expression.expr_coeffs = expression.expr_coeffs.clone().slice_fill(coeff_idx..coeff_idx + 1, new_val);
         }
     }
     let mut widgets = RVec::new();
@@ -997,12 +900,13 @@ pub extern "C" fn smpl_expression_gui(selected_entity: &ROption<Entity>, scene: 
             .as_deref()
             .unwrap_or(&Expression::default())
             .expr_type;
+        #[allow(clippy::range_plus_one)]
         if let Ok(expression) = scene.world.get::<&Expression>(*entity) {
             if face_type == FaceType::SmplX {
-                for i in 0..expression.expr_coeffs.len() {
+                for i in 0..expression.expr_coeffs.dims()[0] {
                     let slider = Slider::new(
                         ("Coeff_".to_owned() + &i.to_string()).as_str(),
-                        expression.expr_coeffs[i],
+                        expression.expr_coeffs.clone().slice(i..i + 1).into_scalar(),
                         -5.0,
                         5.0,
                         RSome(80.0),
@@ -1016,6 +920,30 @@ pub extern "C" fn smpl_expression_gui(selected_entity: &ROption<Entity>, scene: 
     }
     GuiWindow {
         window_name: RString::from("Expression"),
+        window_type: GuiWindowType::Sidebar,
+        widgets,
+    }
+}
+#[allow(missing_docs)]
+#[cfg(feature = "with-gui")]
+#[allow(clippy::semicolon_if_nothing_returned)]
+#[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
+pub extern "C" fn smpl_vertex_offset_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+    use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
+    extern "C" fn vertex_offset_slider_change(new_val: f32, _widget_name: &RString, entity: &Entity, scene: &mut Scene) {
+        if let Ok(mut offsets) = scene.world.get::<&mut VertexOffsets>(*entity) {
+            offsets.strength = new_val;
+        }
+    }
+    let mut widgets = RVec::new();
+    if let RSome(entity) = selected_entity {
+        if let Ok(offsets) = scene.world.get::<&VertexOffsets>(*entity) {
+            let slider = Slider::new("strength", offsets.strength, -3.0, 3.0, RSome(80.0), vertex_offset_slider_change, RNone);
+            widgets.push(Widgets::Slider(slider));
+        }
+    }
+    GuiWindow {
+        window_name: RString::from("VertexOffsets"),
         window_type: GuiWindowType::Sidebar,
         widgets,
     }
@@ -1174,6 +1102,34 @@ pub extern "C" fn smpl_hand_pose_gui(selected_entity: &ROption<Entity>, scene: &
 }
 #[allow(missing_docs)]
 #[cfg(feature = "with-gui")]
+#[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
+pub extern "C" fn smpl_interop_gui(selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+    use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
+    extern "C" fn gloss_interop_with_uv_set(val: bool, _widget_name: &RString, entity: &Entity, scene: &mut Scene) {
+        if let Ok(mut gloss_interop) = scene.world.get::<&mut GlossInterop>(*entity) {
+            gloss_interop.with_uv = val;
+        }
+        scene.world.remove_one::<UVs>(*entity).ok();
+        scene.world.remove_one::<Normals>(*entity).ok();
+        scene.world.remove_one::<Faces>(*entity).ok();
+        scene.world.remove_one::<Colors>(*entity).ok();
+        scene.world.remove_one::<Tangents>(*entity).ok();
+    }
+    let mut widgets = RVec::new();
+    if let RSome(entity) = selected_entity {
+        if let Ok(gloss_interop) = scene.world.get::<&GlossInterop>(*entity) {
+            let checkbox_with_uv = Checkbox::new("with_uv", gloss_interop.with_uv, gloss_interop_with_uv_set);
+            widgets.push(Widgets::Checkbox(checkbox_with_uv));
+        }
+    }
+    GuiWindow {
+        window_name: RString::from("GlossInterop"),
+        window_type: GuiWindowType::Sidebar,
+        widgets,
+    }
+}
+#[allow(missing_docs)]
+#[cfg(feature = "with-gui")]
 #[allow(clippy::cast_precision_loss)]
 #[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
 pub extern "C" fn smpl_event_dropfile(scene: &mut Scene, _runner: &mut RunnerState, event: &Event) -> bool {
@@ -1209,7 +1165,7 @@ pub extern "C" fn smpl_event_dropfile(scene: &mut Scene, _runner: &mut RunnerSta
                 FileType::Mcs => {
                     info!("handling dropped mcs file {path}");
                     let mut codec = McsCodec::from_file(path);
-                    let builders = codec.to_entity_builders();
+                    let builders = codec.to_entity_builders(true);
                     for mut builder in builders {
                         if !builder.has::<Betas>() {
                             warn!("The .smpl file didn't have any shape_parameters associated, we are defaulting to the mean smpl shape");

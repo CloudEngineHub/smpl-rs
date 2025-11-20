@@ -3,28 +3,30 @@ use super::{
     pose_override::PoseOverride,
     types::{SmplType, UpAxis},
 };
+use crate::AppBackend;
 use crate::{codec::codec::SmplCodec, common::pose_parts::PosePart, smpl_h::smpl_h, smpl_x::smpl_x};
-use gloss_utils::nshare::ToNalgebra;
+use burn::{prelude::Backend, tensor::Tensor};
+use gloss_utils::bshare::{ToBurn, ToNdArray};
 use log::warn;
-use nalgebra as na;
 use nd::concatenate;
 use ndarray as nd;
-use ndarray::prelude::*;
-use smpl_utils::numerical::interpolate_angle;
+use smpl_utils::numerical::interpolate_angle_tensor;
 /// Component for pose
 #[derive(Clone, Debug)]
-pub struct Pose {
-    pub joint_poses: nd::Array2<f32>,
-    pub global_trans: nd::Array1<f32>,
+pub struct PoseG<B: Backend> {
+    pub device: B::Device,
+    pub joint_poses: Tensor<B, 2>,
+    pub global_trans: Tensor<B, 1>,
     pub enable_pose_corrective: bool,
     pub up_axis: UpAxis,
     pub smpl_type: SmplType,
-    pub non_retargeted_pose: Option<Box<Pose>>,
+    pub non_retargeted_pose: Option<Box<PoseG<B>>>,
     pub retargeted: bool,
 }
-impl Pose {
-    pub fn new(joint_poses: nd::Array2<f32>, global_trans: nd::Array1<f32>, up_axis: UpAxis, smpl_type: SmplType) -> Self {
+impl<B: Backend> PoseG<B> {
+    pub fn new(joint_poses: Tensor<B, 2>, global_trans: Tensor<B, 1>, up_axis: UpAxis, smpl_type: SmplType) -> Self {
         Self {
+            device: joint_poses.device(),
             joint_poses,
             global_trans,
             enable_pose_corrective: false,
@@ -35,15 +37,30 @@ impl Pose {
         }
     }
     pub fn new_empty(up_axis: UpAxis, smpl_type: SmplType) -> Self {
+        let device = B::Device::default();
         let joint_poses = match smpl_type {
-            SmplType::SmplX => ndarray::Array2::<f32>::zeros((smpl_x::NUM_JOINTS + 1, 3)),
-            SmplType::SmplH => ndarray::Array2::<f32>::zeros((smpl_h::NUM_JOINTS + 1, 3)),
+            SmplType::SmplX => Tensor::<B, 2>::zeros([smpl_x::NUM_JOINTS + 1, 3], &device),
+            SmplType::SmplH => Tensor::<B, 2>::zeros([smpl_h::NUM_JOINTS + 1, 3], &device),
             _ => panic!("{smpl_type:?} is not yet supported!"),
         };
-        let global_trans = ndarray::Array1::<f32>::zeros(3);
+        let global_trans = Tensor::<B, 1>::zeros([3], &device);
         Self {
+            device,
             joint_poses,
             global_trans,
+            enable_pose_corrective: false,
+            up_axis,
+            smpl_type,
+            non_retargeted_pose: None,
+            retargeted: false,
+        }
+    }
+    pub fn new_from_ndarray(joint_poses: nd::Array2<f32>, global_trans: nd::Array1<f32>, up_axis: UpAxis, smpl_type: SmplType) -> Self {
+        let device = B::Device::default();
+        Self {
+            device: device.clone(),
+            joint_poses: joint_poses.into_burn(&device.clone()),
+            global_trans: global_trans.into_burn(&device),
             enable_pose_corrective: false,
             up_axis,
             smpl_type,
@@ -89,7 +106,7 @@ impl Pose {
             &[body_pose.view(), head_pose.view(), left_hand_pose.view(), right_hand_pose.view()],
         )
         .unwrap();
-        Some(Self::new(joint_poses, body_translation, UpAxis::Y, codec.smpl_type()))
+        Some(Self::new_from_ndarray(joint_poses, body_translation, UpAxis::Y, codec.smpl_type()))
     }
     /// Create new ``Pose`` component from ``.smpl`` file
     #[cfg(not(target_arch = "wasm32"))]
@@ -99,51 +116,60 @@ impl Pose {
         Self::new_from_smpl_codec(&codec)
     }
     pub fn num_active_joints(&self) -> usize {
-        self.joint_poses.dim().0
+        self.joint_poses.dims()[0]
     }
     pub fn apply_mask(&mut self, mask: &mut PoseOverride) {
         let metadata = smpl_metadata(&self.smpl_type);
+        let dim_joint = self.joint_poses.dims()[1];
         for part in &mask.denied_parts {
             if *part == PosePart::RootTranslation {
-                self.global_trans.fill(0.0);
+                self.global_trans = self.global_trans.clone().slice_fill([..], 0.0);
             } else {
                 let range_of_body_part = metadata.parts2jointranges[*part].clone();
-                let num_joints = self.joint_poses.dim().0;
+                let num_joints = self.joint_poses.dims()[0];
                 if range_of_body_part.start < num_joints {
                     let range_of_body_part_clamped = range_of_body_part.start..std::cmp::min(num_joints, range_of_body_part.end);
-                    self.joint_poses.slice_mut(s![range_of_body_part_clamped, ..]).fill(0.0);
+                    self.joint_poses = self.joint_poses.clone().slice_fill([range_of_body_part_clamped, 0..dim_joint], 0.0);
                 }
             }
         }
         let range_left_hand = metadata.parts2jointranges[PosePart::LeftHand].clone();
         let range_right_hand = metadata.parts2jointranges[PosePart::RightHand].clone();
         if let Some(hand_type) = mask.overwrite_hands {
-            let original_left = self.joint_poses.slice(s![range_left_hand.clone(), ..]);
-            let original_right = self.joint_poses.slice(s![range_right_hand.clone(), ..]);
+            let original_left = self.joint_poses.clone().slice([range_left_hand.clone(), 0..dim_joint]);
+            let original_right = self.joint_poses.clone().slice([range_right_hand.clone(), 0..dim_joint]);
             if mask.original_left_hand.is_none() {
-                mask.original_left_hand = Some(original_left.to_owned());
+                mask.original_left_hand = Some(original_left.clone().to_ndarray());
             }
             if mask.original_right_hand.is_none() {
-                mask.original_right_hand = Some(original_right.to_owned());
+                mask.original_right_hand = Some(original_right.clone().to_ndarray());
             }
-            self.joint_poses
-                .slice_mut(s![range_left_hand, ..])
-                .assign(&metadata.hand_poses[hand_type].left);
-            self.joint_poses
-                .slice_mut(s![range_right_hand, ..])
-                .assign(&metadata.hand_poses[hand_type].right);
+            self.joint_poses = self
+                .joint_poses
+                .clone()
+                .slice_assign([range_left_hand, 0..dim_joint], metadata.hand_poses[hand_type].left.to_burn(&self.device));
+            self.joint_poses = self.joint_poses.clone().slice_assign(
+                [range_right_hand, 0..dim_joint],
+                metadata.hand_poses[hand_type].right.to_burn(&self.device),
+            );
         } else {
             if let Some(left) = mask.original_left_hand.take() {
-                self.joint_poses.slice_mut(s![range_left_hand, ..]).assign(&left);
+                self.joint_poses = self
+                    .joint_poses
+                    .clone()
+                    .slice_assign([range_left_hand, 0..dim_joint], left.to_burn(&self.device));
             }
             if let Some(right) = mask.original_right_hand.take() {
-                self.joint_poses.slice_mut(s![range_right_hand, ..]).assign(&right);
+                self.joint_poses = self
+                    .joint_poses
+                    .clone()
+                    .slice_assign([range_right_hand, 0..dim_joint], right.to_burn(&self.device));
             }
         }
     }
     /// Interpolate between 2 poses
     #[must_use]
-    pub fn interpolate(&self, other_pose: &Self, other_weight: f32) -> Pose {
+    pub fn interpolate(&self, other_pose: &Self, other_weight: f32) -> PoseG<B> {
         if !(0.0..=1.0).contains(&other_weight) {
             warn!("pose interpolation weight is outside the [0,1] range, will clamp. Weight is {other_weight}");
         }
@@ -154,53 +180,40 @@ impl Pose {
             self.smpl_type,
             other_pose.smpl_type
         );
-        let non_angle_indices = [27, 28, 37, 38];
+        let cur_w = 1.0 - other_weight;
         if self.smpl_type == SmplType::SmplPP {
-            let cur_w = 1.0 - other_weight;
+            let non_angle_indices = [27, 28, 37, 38];
+            let dim_joint = self.joint_poses.dims()[1];
             let mut new_joint_poses = self.joint_poses.clone();
-            for (i, ((cur_angle, other_angle), new_angle)) in self
+            #[allow(clippy::range_plus_one)]
+            for (i, (cur_angle, other_angle)) in self
                 .joint_poses
-                .iter()
-                .zip(other_pose.joint_poses.iter())
-                .zip(new_joint_poses.iter_mut())
+                .clone()
+                .iter_dim(0)
+                .zip(other_pose.joint_poses.clone().iter_dim(0))
                 .enumerate()
             {
                 if non_angle_indices.contains(&i) {
-                    *new_angle = cur_w * cur_angle + other_weight * other_angle;
+                    new_joint_poses = new_joint_poses
+                        .clone()
+                        .slice_assign([i..i + 1, 0..dim_joint], cur_w * cur_angle + other_weight * other_angle);
                 } else {
-                    *new_angle = interpolate_angle(*cur_angle, *other_angle, cur_w, other_weight);
+                    let new_val = interpolate_angle_tensor(cur_angle.squeeze(0), other_angle.squeeze(0), cur_w, other_weight);
+                    new_joint_poses = new_joint_poses.clone().slice_assign([i..i + 1, 0..dim_joint], new_val.unsqueeze());
                 }
             }
-            let new_global_trans = cur_w * &self.global_trans + other_weight * &other_pose.global_trans;
-            return Pose::new(new_joint_poses, new_global_trans, self.up_axis, self.smpl_type);
+            let new_global_trans = cur_w * self.global_trans.clone() + other_weight * other_pose.global_trans.clone();
+            return PoseG::new(new_joint_poses, new_global_trans, self.up_axis, self.smpl_type);
         }
-        let cur_w = 1.0 - other_weight;
-        let new_global_trans = cur_w * &self.global_trans + other_weight * &other_pose.global_trans;
-        let cur_pose_axis_angle_na = self.joint_poses.view().into_nalgebra();
-        let other_pose_axis_angle_na = other_pose.joint_poses.view().into_nalgebra();
-        let mut new_joint_poses = nd::Array2::<f32>::zeros((self.num_active_joints(), 3));
-        for ((cur_axis, other_axis), mut new_joint) in cur_pose_axis_angle_na
-            .row_iter()
-            .zip(other_pose_axis_angle_na.row_iter())
-            .zip(new_joint_poses.axis_iter_mut(nd::Axis(0)))
-        {
-            let cur_vec = na::Vector3::new(cur_axis[0], cur_axis[1], cur_axis[2]);
-            let mut cur_q = na::UnitQuaternion::from_axis_angle(&na::UnitVector3::new_normalize(cur_vec), cur_axis.norm());
-            if cur_axis.norm() == 0.0 {
-                cur_q = na::UnitQuaternion::default();
-            }
-            let other_vec = na::Vector3::new(other_axis[0], other_axis[1], other_axis[2]);
-            let mut other_q = na::UnitQuaternion::from_axis_angle(&na::UnitVector3::new_normalize(other_vec), other_axis.norm());
-            if other_axis.norm() == 0.0 {
-                other_q = na::UnitQuaternion::default();
-            }
-            let new_q: na::Unit<na::Quaternion<f32>> = cur_q.slerp(&other_q, other_weight);
-            let axis_opt = new_q.axis();
-            let angle = new_q.angle();
-            if let Some(axis) = axis_opt {
-                new_joint.assign(&array![axis.x * angle, axis.y * angle, axis.z * angle]);
-            }
-        }
-        Pose::new(new_joint_poses, new_global_trans, self.up_axis, self.smpl_type)
+        let new_global_trans = cur_w * self.global_trans.clone() + other_weight * other_pose.global_trans.clone();
+        let all_joints = Tensor::cat(vec![self.joint_poses.clone(), other_pose.joint_poses.clone()], 0);
+        let all_quats = smpl_utils::numerical::axis_angle_to_quaternion(all_joints);
+        let vec_quats = all_quats.split(self.joint_poses.dims()[0], 0);
+        let cur_quats = vec_quats[0].clone();
+        let other_quats = vec_quats[1].clone();
+        let interpolated_quats = smpl_utils::numerical::quaternion_interpolate_lerp_fast(cur_quats, other_quats, other_weight);
+        let new_joint_poses = smpl_utils::numerical::quaternion_to_axis_angle_fast(interpolated_quats);
+        PoseG::new(new_joint_poses, new_global_trans, self.up_axis, self.smpl_type)
     }
 }
+pub type Pose = PoseG<AppBackend>;

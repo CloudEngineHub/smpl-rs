@@ -2,16 +2,17 @@ use clap::Parser;
 use gloss_renderer::viewer_dummy::ViewerDummy;
 use gloss_renderer::{config::LogLevel, gloss_setup_logger};
 use smpl_core::codec::codec::SmplCodec;
-use smpl_core::codec::gltf::GltfCodec;
+use smpl_core::codec::gltf::{GltfCodec, GltfExportOptions};
 use smpl_core::codec::scene::McsCodec;
 use smpl_core::common::animation::{AnimWrap, AnimationConfig};
 use smpl_core::common::smpl_options::SmplOptions;
-use smpl_core::common::types::{FaceType, GltfCompatibilityMode, GltfOutputType};
+use smpl_core::common::types::GltfCompatibilityMode;
 use smpl_core::common::{
     betas::Betas,
-    smpl_model::SmplCacheDynamic,
+    smpl_model::SmplCache,
     types::{Gender, SmplType},
 };
+use smpl_gloss_integration::gltf::GltfInteropOptions;
 use smpl_gloss_integration::{
     codec::SmplCodecGloss,
     components::GlossInterop,
@@ -65,13 +66,13 @@ fn main() {
     println!("- GLB will be saved to: {:?}", output_path);
     println!("- Compatibility mode: {:?}", compatibility_mode);
     let mut viewer = ViewerDummy::new(None);
-    let mut smpl_models = SmplCacheDynamic::default();
+    let mut smpl_models = SmplCache::default();
     match input_extension {
         "mcs" => {
             assert!(neutral_model_path.exists(), "Neutral model data not found at {:?}", neutral_model_path);
             smpl_models.set_lazy_loading(SmplType::SmplX, Gender::Neutral, neutral_model_path.to_str().unwrap());
             let mut mcs_codec = McsCodec::from_file(input_path.to_str().unwrap());
-            let builders = mcs_codec.to_entity_builders();
+            let builders = mcs_codec.to_entity_builders(false);
             for mut builder in builders {
                 if !builder.has::<Betas>() {
                     builder.add(Betas::default());
@@ -118,12 +119,13 @@ fn main() {
     viewer.scene.add_resource(smpl_models);
     viewer.insert_plugin(&SmplPlugin::new(false));
     viewer.run_manual_plugins();
-    let mut gltf_codec = GltfCodec::from_scene(&viewer.scene, None, true);
+    let mut gltf_codec = GltfCodec::from_scene(&viewer.scene, &GltfInteropOptions::default());
     gltf_codec.to_file(
         "Meshcapade Scene",
         output_path.to_str().unwrap(),
-        GltfOutputType::Binary,
-        compatibility_mode,
-        FaceType::SmplX,
+        &GltfExportOptions {
+            compatibility_mode,
+            ..Default::default()
+        },
     );
 }

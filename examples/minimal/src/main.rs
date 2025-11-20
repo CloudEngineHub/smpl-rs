@@ -1,3 +1,5 @@
+use gloss_burn_multibackend::global_backend::init_global_burn_backend;
+use gloss_burn_multibackend::global_backend::GlobalBackend;
 use gloss_renderer::{
     components::{DiffuseImg, ImgConfig, NormalImg, RoughnessImg},
     viewer::Viewer,
@@ -10,7 +12,7 @@ use smpl_core::common::{
     pose_hands::HandType,
     pose_override::PoseOverride,
     pose_parts::PosePart,
-    smpl_model::SmplCacheDynamic,
+    smpl_model::SmplCache,
     smpl_params::SmplParams,
     types::{FaceType, Gender, SmplType, UpAxis},
 };
@@ -18,17 +20,18 @@ use smpl_gloss_integration::{components::GlossInterop, plugin::SmplPlugin};
 use std::path::Path;
 fn main() {
     gloss_setup_logger(LogLevel::Info, None);
+    init_global_burn_backend(GlobalBackend::Candle);
     let config_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("config/config.toml");
     let mut viewer = Viewer::new(config_path.to_str());
-    let mut smpl_models = SmplCacheDynamic::default();
+    let mut smpl_models = SmplCache::default();
     smpl_models.lazy_load_defaults();
     let path_diffuse = "./data/smplx/female_alb_2.png";
     let path_normal = "./data/smplx/female_nrm.png";
     let path_roughness = "./data/smplx/texture_f_r.png";
     let path_anim = "./data/smplx/apose_to_00093lazysaturdaynightfever.npz";
-    let entity = viewer.scene.get_or_create_entity("mesh_smpl").entity();
+    let entity = viewer.scene_mut().get_or_create_entity("mesh_smpl").entity();
     viewer
-        .scene
+        .scene_mut()
         .world
         .insert(
             entity,
@@ -59,7 +62,7 @@ fn main() {
             ),
         )
         .unwrap();
-    viewer.scene.add_resource(smpl_models);
+    viewer.scene_mut().add_resource(smpl_models);
     viewer.insert_plugin(&SmplPlugin::new(true));
     viewer.run();
 }

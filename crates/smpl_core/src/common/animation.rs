@@ -1,10 +1,11 @@
 use super::{
     expression::Expression,
     metadata::smpl_metadata,
-    pose::Pose,
+    pose::PoseG,
     types::{AngleType, SmplType, UpAxis},
 };
 use crate::{codec::codec::SmplCodec, common::types::FaceType};
+use burn::prelude::Backend;
 use core::time::Duration;
 use gloss_utils::nshare::{RefNdarray1, ToNalgebra};
 use log::debug;
@@ -350,7 +351,7 @@ impl Animation {
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
-    pub fn get_current_pose(&mut self) -> Pose {
+    pub fn get_current_pose<B: Backend>(&mut self) -> PoseG<B> {
         let (frame_floor, frame_ceil, w_ceil) = self.get_smooth_time_indices();
         let anim_frame_ceil = self.get_pose_at_idx(frame_ceil);
         let anim_frame_floor = self.get_pose_at_idx(frame_floor);
@@ -360,10 +361,10 @@ impl Animation {
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
-    pub fn get_pose_at_idx(&self, idx: usize) -> Pose {
+    pub fn get_pose_at_idx<B: Backend>(&self, idx: usize) -> PoseG<B> {
         let joint_poses = self.per_frame_joint_poses.index_axis(nd::Axis(0), idx).to_owned();
         let global_trans = self.per_frame_root_trans.index_axis(nd::Axis(0), idx).to_owned();
-        Pose::new(joint_poses, global_trans, self.config.up_axis, self.config.smpl_type)
+        PoseG::<B>::new_from_ndarray(joint_poses, global_trans, self.config.up_axis, self.config.smpl_type)
     }
     /// Get expression at current time
     pub fn get_current_expression(&mut self) -> Option<Expression> {
@@ -379,7 +380,7 @@ impl Animation {
     pub fn get_expression_at_idx(&self, idx: usize) -> Option<Expression> {
         if let Some(ref per_frame_expression_coeffs) = self.per_frame_expression_coeffs {
             let expr_coeffs = per_frame_expression_coeffs.index_axis(nd::Axis(0), idx).to_owned();
-            Some(Expression::new(expr_coeffs, self.config.face_type))
+            Some(Expression::new_from_ndarray(expr_coeffs, self.config.face_type))
         } else {
             None
         }

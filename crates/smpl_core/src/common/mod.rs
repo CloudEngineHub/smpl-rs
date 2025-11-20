@@ -13,4 +13,6 @@ pub mod pose_retarget;
 pub mod smpl_model;
 pub mod smpl_options;
 pub mod smpl_params;
+pub mod transform_sequence;
 pub mod types;
+pub mod vertex_offsets;

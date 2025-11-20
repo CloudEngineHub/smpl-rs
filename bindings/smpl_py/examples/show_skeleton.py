@@ -88,11 +88,12 @@ if __name__ == "__main__":
         viewer.run_manual_plugins()
 
         # make an entity for the joints and the lines between them
-        smpl_output = mesh.get(SmplOutputPosed)
-        joint_positions = smpl_output.joints
+        if mesh.has(SmplOutputPosed):
+            smpl_output = mesh.get(SmplOutputPosed)
+            joint_positions = smpl_output.joints
 
-        j_verts, j_edges = Verts(joint_positions), Edges(edges)
-        joints.insert(j_verts)
-        joints.insert(j_edges)
+            j_verts, j_edges = Verts(joint_positions), Edges(edges)
+            joints.insert(j_verts)
+            joints.insert(j_edges)
 
         viewer.update()

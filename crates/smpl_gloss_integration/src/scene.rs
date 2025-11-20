@@ -1,11 +1,10 @@
 use crate::{codec::SmplCodecGloss, components::GlossInterop};
 use gloss_hecs::EntityBuilder;
 use gloss_renderer::{
-    components::{Name, VisMesh},
+    components::{MeshColorType, Name, VisMesh},
     scene::Scene,
 };
 use log::info;
-use ndarray::s;
 use smpl_core::{
     codec::{
         codec::SmplCodec,
@@ -21,11 +20,12 @@ use smpl_core::{
 };
 use smpl_utils::numerical::hex_to_rgb_f32;
 use std::time::Duration;
-const COLOR_CODES: [&str; 4] = ["#63D4BF", "#BAC2F7", "#FFEF9E", "#72B0C5"];
+const COLOR_CODES: [&str; 4] = ["#BAC2F7", "#ACECE1", "#FFEF9E", "#72B0C5"];
 /// creates a ``Vec<gloss_hecs::EntityBuilder>`` from the ``McsCodec``
 pub trait McsCodecGloss {
     fn from_scene(scene: &Scene) -> Self;
-    fn to_entity_builders(&mut self) -> Vec<EntityBuilder>;
+    fn to_entity_builders(&mut self, with_colors: bool) -> Vec<EntityBuilder>;
+    fn insert_into_scene(&mut self, scene: &mut Scene, with_colors: bool);
 }
 /// Trait implementation for `McsCodec`
 impl McsCodecGloss for McsCodec {
@@ -54,6 +54,12 @@ impl McsCodecGloss for McsCodec {
             };
             smpl_bodies.push(smpl_body);
         }
+        info!(
+            "Created McsCodec from scene: Num frames - {}, Num bodies - {}, Camera present - {}",
+            num_frames,
+            smpl_bodies.len(),
+            camera_track.is_some()
+        );
         Self {
             num_frames,
             frame_rate,
@@ -63,27 +69,31 @@ impl McsCodecGloss for McsCodec {
     }
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_sign_loss)]
-    fn to_entity_builders(&mut self) -> Vec<EntityBuilder> {
+    fn to_entity_builders(&mut self, with_colors: bool) -> Vec<EntityBuilder> {
         let mut builders: Vec<EntityBuilder> = Vec::new();
-        let mut camera_num_frames = 1;
         if let Some(camera_track) = &self.camera_track {
             let mut camera_builder = EntityBuilder::new();
-            camera_num_frames = camera_track.per_frame_translations.as_ref().unwrap().shape()[0];
             camera_builder.add(Name("TrackedCamera".to_string()));
             camera_builder.add(camera_track.clone());
             builders.push(camera_builder);
         }
+        let camera_num_frames = self.camera_track.as_ref().map(|camera_track| camera_track.num_frames().max(1));
         for (i, smpl_body) in self.smpl_bodies.iter().enumerate() {
             let smpl_num_frames = smpl_body.codec.frame_count as usize;
             self.frame_rate = smpl_body.codec.frame_rate;
             let is_static = smpl_num_frames == 1;
             let start_offset = smpl_body.frame_presence[0];
-            assert_eq!(
-                start_offset + smpl_num_frames,
-                camera_num_frames,
-                "The number of frames in the smpl and camera tracks must be the same"
-            );
-            let color = hex_to_rgb_f32(COLOR_CODES[i % COLOR_CODES.len()]);
+            if let Some(camera_num_frames) = camera_num_frames {
+                assert!(
+                    start_offset + smpl_num_frames <= camera_num_frames,
+                    "The number of frames in the smpl file should be less than or equal to the number of frames in the camera track"
+                );
+            }
+            let color = if with_colors {
+                hex_to_rgb_f32(COLOR_CODES[i % COLOR_CODES.len()])
+            } else {
+                (1.0, 1.0, 1.0)
+            };
             let mut builder = EntityBuilder::new();
             let smpl_params = SmplParams::new_from_smpl_codec(&smpl_body.codec);
             if is_static {
@@ -98,7 +108,7 @@ impl McsCodecGloss for McsCodec {
             builder.add(smpl_params);
             if let Some(mut betas) = Betas::new_from_smpl_codec(&smpl_body.codec) {
                 info!("Found betas in the .smpl file");
-                let trimmed_betas = betas.betas.slice(s![..10]).to_owned();
+                let trimmed_betas = betas.betas.clone().slice([..10]);
                 betas.betas = trimmed_betas;
                 builder.add(betas);
             }
@@ -107,14 +117,27 @@ impl McsCodecGloss for McsCodec {
             builder.add(GlossInterop { with_uv: true });
             builder.add(VisMesh {
                 solid_color: nalgebra::Vector4::<f32>::new(color.0, color.1, color.2, 1.0),
+                color_type: MeshColorType::Texture,
                 ..Default::default()
             });
+            builder.add(Name(format!("avatar-{:02}", i + 1)));
             builders.push(builder);
         }
         builders
     }
+    fn insert_into_scene(&mut self, scene: &mut Scene, with_colors: bool) {
+        let builders = self.to_entity_builders(with_colors);
+        for mut builder in builders {
+            if !builder.has::<Betas>() {
+                builder.add(Betas::default());
+            }
+            let gloss_interop = GlossInterop::default();
+            let name = builder.get::<&Name>().unwrap().0.clone();
+            scene.get_or_create_entity(&name).insert_builder(builder).insert(gloss_interop);
+        }
+    }
 }
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct SceneAnimation {
     pub num_frames: usize,
     pub runner: AnimationRunner,

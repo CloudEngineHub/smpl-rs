@@ -13,7 +13,6 @@ from smpl_rs import SmplCache
 from smpl_rs.codec import McsCodec
 from smpl_rs.plugins import SmplPlugin
 from smpl_rs.types import SmplType, Gender
-from smpl_rs.components import GlossInterop
 
 setup_logger(log_level=LogLevel.Info)
 
@@ -39,13 +38,7 @@ if __name__ == "__main__":
     print(f"Has camera: {mcs_codec.has_camera}")
     print(f"Frame rate: {mcs_codec.frame_rate}")
 
-    entity_builders = mcs_codec.to_entity_builders()
-
-    for current_ent, builder in enumerate(entity_builders):
-        entity = viewer.get_or_create_entity(name=f"mcs_entity_{current_ent}")
-        entity.insert(builder)
-        interop = GlossInterop(with_uv=True)
-        entity.insert(interop)
+    mcs_codec.insert_into_scene(viewer.get_scene().ptr_idx(), with_colors=True)
 
     smpl_models = SmplCache.default()
     smpl_models.set_lazy_loading(SmplType.SmplX, Gender.Neutral, path_model_neutral)

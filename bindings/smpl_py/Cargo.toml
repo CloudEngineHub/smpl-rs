@@ -14,9 +14,11 @@ crate-type = ["cdylib"] #cdylib is needed for pyo3 and rlib is needed so that is
 name = "smpl_rs" # name of the .so library that the Python module will import
 
 [features]
-default = ["with-gui", "private"]
-with-gui=["smpl-gloss-integration/with-gui", "gloss-renderer/with-gui"]
+default = ["with-gui", "private", "selector"]
+with-gui=["smpl-gloss-integration/with-gui", "easy-wgpu/with-gui", "gloss-renderer/with-gui"]
+selector=["gloss-renderer/selector"]
 private=["smpl-core/private"]
+
 extension-module = ["pyo3/extension-module"]
 
 [dependencies]
@@ -27,6 +29,9 @@ gloss_py_macros = {workspace= true, default-features = true}
 gloss-renderer = {workspace= true, default-features = true}
 gloss-utils = {workspace= true, default-features = true}
 gloss-hecs= {workspace= true, default-features = true}
+gloss-burn-multibackend= {workspace= true}
+easy-wgpu= {workspace= true}
+wgpu-burn-global-device= {workspace= true}
 
 pyo3 = { version = "0.22", features = ["macros", "multiple-pymethods", "abi3-py38", "extension-module", "gil-refs"] } #downgrade to 0.17 because rigetti
 numpy = { version = "0.22", features = ["nalgebra"] }

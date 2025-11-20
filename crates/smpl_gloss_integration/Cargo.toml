@@ -24,11 +24,14 @@ private = ["smpl-core/private"]
 # Workspace internal
 smpl-core.workspace=true
 smpl-utils.workspace=true
+easy-wgpu.workspace=true
 gloss-hecs.workspace=true
 gloss-renderer.workspace=true
 gloss-utils.workspace=true
 gloss-img.workspace=true
 gloss-geometry.workspace=true
+gloss-burn-multibackend.workspace=true
+wgpu-burn-interop.workspace=true
 
 # Workspace third-party
 egui = {workspace=true, optional = true}
@@ -37,37 +40,19 @@ cfg-if.workspace=true
 nalgebra.workspace=true
 ndarray.workspace=true
 burn.workspace=true
+wgpu.workspace=true
 wasm-timer.workspace=true
-enum-map.workspace=true
-strum.workspace=true
-smallvec.workspace=true
-map-range.workspace=true
 image.workspace=true
 bytemuck_derive.workspace=true
-backtrace.workspace=true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 crossbeam-channel.workspace=true
 abi_stable.workspace=true
 
-#TODO remove all of this , I just added it to get the log! macro
+#added it to get the log! macro
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-ndarray-npy = { workspace = true, features = []}
-console_error_panic_hook = "0.1.6"
-console_log = "1.0"
-wasm-bindgen.workspace=true
-wasm-bindgen-futures = "0.4.30"
-web-sys = { version = "0.3", features = [
-    "Request",
-    "RequestInit",
-    "RequestMode",
-    "Response",
-    "Document",
-    "Window",
-    "Element",
-    "HtmlCanvasElement",
-]}
-js-sys = "0.3"
+web-sys.workspace=true
+
 
 [target.x86_64-unknown-linux-gnu] #slightly faster linking
 rustflags = ["-C", "link-arg=-fuse-ld=lld"]

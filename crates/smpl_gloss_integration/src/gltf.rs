@@ -1,14 +1,13 @@
 use crate::scene::SceneAnimation;
-use burn::backend::{Candle, NdArray, Wgpu};
-use burn::prelude::Backend;
 use gloss_img::dynamic_image::DynImage;
 use gloss_renderer::{
-    components::{DiffuseImg, MetalnessImg, Name, NormalImg, RoughnessImg},
+    components::{DiffuseImg, Faces, MetalnessImg, Name, NormalImg, RoughnessImg, UVs, Verts},
     scene::Scene,
 };
 use gloss_utils::{
     bshare::{ToNalgebraFloat, ToNalgebraInt, ToNdArray},
     nshare::ToNalgebra,
+    tensor::DynamicMatrixOps,
 };
 use image::imageops::FilterType;
 use log::info;
@@ -17,9 +16,10 @@ use ndarray::{self as nd, s};
 use smpl_core::common::types::SmplType;
 use smpl_core::{
     codec::gltf::GltfCodec,
-    common::{metadata::smpl_metadata, pose::Pose, smpl_model::SmplCache, smpl_params::SmplParams},
+    common::{metadata::smpl_metadata, pose::Pose, smpl_params::SmplParams},
     conversions::pose_remap::PoseRemap,
 };
+use smpl_core::{codec::gltf::PropData, common::transform_sequence::TransformSequence};
 use smpl_core::{
     codec::{gltf::PerBodyData, scene::CameraTrack},
     common::{
@@ -28,17 +28,19 @@ use smpl_core::{
         expression::Expression,
         pose_override::PoseOverride,
         pose_retarget::RetargetPoseYShift,
-        smpl_model::SmplCacheDynamic,
+        smpl_model::SmplCache,
         smpl_options::SmplOptions,
         types::{FaceType, UpAxis},
     },
 };
 use smpl_utils::array::{Gather2D, Gather3D};
 use std::f32::consts::PI;
+use std::ops::Deref;
 /// Creates a ``GltfCodec`` from an entity by extracting components from it
 pub trait GltfCodecGloss {
-    fn from_scene(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool) -> GltfCodec;
-    fn from_entities(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool, entities: Vec<String>) -> GltfCodec;
+    fn from_scene(scene: &Scene, options: &GltfInteropOptions) -> GltfCodec;
+    fn from_entities(scene: &Scene, options: &GltfInteropOptions, entities: Vec<String>) -> GltfCodec;
+    fn from_scene_with_body_indices(scene: &Scene, options: &GltfInteropOptions, body_idxs: Vec<usize>) -> GltfCodec;
 }
 fn get_image(image: &DynImage, to_gray: bool, max_texture_size: Option<u32>) -> DynImage {
     let mut image = image.clone();
@@ -55,42 +57,52 @@ fn get_image(image: &DynImage, to_gray: bool, max_texture_size: Option<u32>) -> 
         image
     }
 }
-/// Trait implementation for ``GltfCodec``
-impl GltfCodecGloss for GltfCodec {
-    /// Get a ``GltfCodec`` from the scene
-    fn from_scene(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool) -> GltfCodec {
-        let smpl_models = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        match &*smpl_models {
-            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, None, export_camera),
-            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, None, export_camera),
-            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, None, export_camera),
-        }
-    }
-    /// Get a ``GltfCodec`` from the scene
-    fn from_entities(scene: &Scene, max_texture_size: Option<u32>, export_camera: bool, entities: Vec<String>) -> GltfCodec {
-        let smpl_models = scene.get_resource::<&SmplCacheDynamic>().unwrap();
-        match &*smpl_models {
-            SmplCacheDynamic::NdArray(models) => from_scene_on_backend::<NdArray>(scene, models, max_texture_size, Some(&entities), export_camera),
-            SmplCacheDynamic::Wgpu(models) => from_scene_on_backend::<Wgpu>(scene, models, max_texture_size, Some(&entities), export_camera),
-            SmplCacheDynamic::Candle(models) => from_scene_on_backend::<Candle>(scene, models, max_texture_size, Some(&entities), export_camera),
+pub struct GltfInteropOptions {
+    pub max_texture_size: Option<u32>,
+    pub export_camera: bool,
+    pub export_shape: bool,
+}
+impl Default for GltfInteropOptions {
+    fn default() -> Self {
+        Self {
+            max_texture_size: None,
+            export_camera: true,
+            export_shape: true,
         }
     }
 }
-/// Function to get a ``GltfCodec`` from an entity on a generic Burn backend. We
-/// currently support - ``Candle``, ``NdArray``, and ``Wgpu``
+/// Trait implementation for ``GltfCodec``
+impl GltfCodecGloss for GltfCodec {
+    /// Get a ``GltfCodec`` from the scene
+    fn from_scene(scene: &Scene, options: &GltfInteropOptions) -> GltfCodec {
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        gltfcodec_from_scene(scene, &smpl_models, options, None)
+    }
+    /// Get a ``GltfCodec`` from the scene
+    fn from_entities(scene: &Scene, options: &GltfInteropOptions, entities: Vec<String>) -> GltfCodec {
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        gltfcodec_from_scene(scene, &smpl_models, options, Some(&entities))
+    }
+    /// Get a ``GltfCodec`` from the scene
+    fn from_scene_with_body_indices(scene: &Scene, options: &GltfInteropOptions, body_idxs: Vec<usize>) -> GltfCodec {
+        assert!(!body_idxs.is_empty(), "At least one index must be specified");
+        let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
+        let num_smpl_bodies = scene.world.query::<&SmplParams>().iter().len();
+        if *body_idxs.iter().max().unwrap() >= num_smpl_bodies {
+            info!("Some of the indices are out of range. Ignoring these indices.");
+        }
+        let entities_to_export: Vec<String> = body_idxs.into_iter().map(|idx| format!("avatar-{:02}", idx + 1)).collect();
+        gltfcodec_from_scene(scene, &smpl_models, options, Some(&entities_to_export))
+    }
+}
+/// Function to get a ``GltfCodec`` from a scene, possible limited to certain entities
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::trivially_copy_pass_by_ref)]
-fn from_scene_on_backend<B: Backend>(
-    scene: &Scene,
-    smpl_models: &SmplCache<B>,
-    max_texture_size: Option<u32>,
-    entities: Option<&Vec<String>>,
-    export_camera: bool,
-) -> GltfCodec {
+fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfInteropOptions, entities: Option<&Vec<String>>) -> GltfCodec {
     let now = wasm_timer::Instant::now();
     let mut gltf_codec = GltfCodec::default();
     let mut nr_frames = 0;
-    if export_camera {
+    if options.export_camera {
         let mut cameras_query = scene.world.query::<&CameraTrack>();
         for (_, camera_track) in cameras_query.iter() {
             gltf_codec.camera_track = Some(camera_track.clone());
@@ -116,6 +128,17 @@ fn from_scene_on_backend<B: Backend>(
         }
     }
 
+    if let Ok(scene_anim) = scene.get_resource::<&SceneAnimation>() {
+        nr_frames = scene_anim.num_frames;
+        let mut keyframe_times: Vec<f32> = Vec::new();
+        let fps = scene_anim.config.fps;
+        #[allow(clippy::cast_precision_loss)]
+        for global_frame_idx in 0..nr_frames {
+            keyframe_times.push((global_frame_idx as f32) / fps);
+        }
+        gltf_codec.keyframe_times = Some(keyframe_times);
+        gltf_codec.frame_count = Some(nr_frames);
+    }
     for (body_idx, (entity, (smpl_params, name))) in query.iter().enumerate() {
         if let Some(entities) = entities {
             if !entities.contains(&name.0) {
@@ -127,8 +150,14 @@ fn from_scene_on_backend<B: Backend>(
         let mut current_body = PerBodyData::default();
         assert!(smpl_version != SmplType::SmplPP, "GLTF export for SMPL++ is not supported yet!");
         let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
-        let Ok(betas) = scene.get_comp::<&Betas>(&entity) else {
-            panic!("Betas component does not exist!");
+        let betas = if options.export_shape {
+            scene
+                .get_comp::<&Betas>(&entity)
+                .expect("Betas component does not exist!")
+                .deref()
+                .clone()
+        } else {
+            Betas::default()
         };
         let default_pose = Pose::new_empty(UpAxis::Y, smpl_params.smpl_type);
         let default_expression = Expression::new_empty(10, FaceType::SmplX);
@@ -145,9 +174,9 @@ fn from_scene_on_backend<B: Backend>(
         }
         gltf_codec.smpl_type = smpl_version;
         gltf_codec.gender = gender;
-        current_body.pose = Some(default_pose.clone());
-        gltf_codec.default_joint_poses = Some(default_pose.clone().joint_poses);
-        current_body.body_translation = Some(default_pose.clone().global_trans.to_shape((1, 3)).unwrap().to_owned());
+        current_body.joint_poses = Some(default_pose.joint_poses.to_ndarray().clone());
+        gltf_codec.default_joint_poses = Some(default_pose.clone().joint_poses.to_ndarray());
+        current_body.body_translation = Some(default_pose.clone().global_trans.to_ndarray().to_shape((1, 3)).unwrap().to_owned());
         let verts_na = smpl_output.verts.to_nalgebra();
         let normals_na = smpl_output.normals.as_ref().expect("SMPL Output is missing normals!").to_nalgebra();
         let faces_na = smpl_output.faces.to_nalgebra();
@@ -176,25 +205,25 @@ fn from_scene_on_backend<B: Backend>(
         let diffuse_img = scene.get_comp::<&DiffuseImg>(&entity);
         if let Ok(diffuse_img) = diffuse_img {
             if let Some(img) = &diffuse_img.generic_img.cpu_img {
-                current_body.diffuse_textures = Some(get_image(img, false, max_texture_size));
+                current_body.diffuse_textures = Some(get_image(img, false, options.max_texture_size));
             }
         }
         let normals_img = scene.get_comp::<&NormalImg>(&entity);
         if let Ok(normals_img) = normals_img {
             if let Some(img) = &normals_img.generic_img.cpu_img {
-                current_body.normals_textures = Some(get_image(img, false, max_texture_size));
+                current_body.normals_textures = Some(get_image(img, false, options.max_texture_size));
             }
         }
         let metalness_img = scene.get_comp::<&MetalnessImg>(&entity);
         if let Ok(metalness_img) = metalness_img {
             if let Some(img) = &metalness_img.generic_img.cpu_img {
-                current_body.metalness_textures = Some(get_image(img, true, max_texture_size));
+                current_body.metalness_textures = Some(get_image(img, true, options.max_texture_size));
             }
         }
         let roughness_img = scene.get_comp::<&RoughnessImg>(&entity);
         if let Ok(roughness_img) = roughness_img {
             if let Some(img) = &roughness_img.generic_img.cpu_img {
-                current_body.roughness_textures = Some(get_image(img, true, max_texture_size));
+                current_body.roughness_textures = Some(get_image(img, true, options.max_texture_size));
             }
         }
         if scene.world.has::<Pose>(entity).unwrap() && !scene.world.has::<Animation>(entity).unwrap() {
@@ -202,8 +231,8 @@ fn from_scene_on_backend<B: Backend>(
                 panic!("Pose component doesn't exist");
             };
             let current_pose: &Pose = &pose_ref;
-            let current_body_translation = current_pose.global_trans.to_shape((1, 3)).unwrap().to_owned();
-            current_body.pose = Some(current_pose.clone());
+            let current_body_translation = current_pose.global_trans.to_ndarray().to_shape((1, 3)).unwrap().to_owned();
+            current_body.joint_poses = Some(current_pose.joint_poses.clone().to_ndarray());
             current_body.body_translation = Some(current_body_translation);
             if smpl_params.enable_pose_corrective {
                 let vertex_offsets_merged = smpl_model.compute_pose_correctives(current_pose).to_ndarray();
@@ -217,11 +246,8 @@ fn from_scene_on_backend<B: Backend>(
         if scene.world.has::<Animation>(entity).unwrap() {
             let scene_anim = scene.get_resource::<&SceneAnimation>().unwrap();
             nr_frames = scene_anim.num_frames;
-            let fps = scene_anim.config.fps;
             info!("Processing Animation for body {body_idx:?}");
             let anim = scene.get_comp::<&Animation>(&entity).unwrap();
-            gltf_codec.frame_count = Some(nr_frames);
-            let mut keyframe_times: Vec<f32> = Vec::new();
             let mut current_body_rotations = nd::Array3::<f32>::zeros((joint_count, nr_frames, 3));
             let mut current_body_translations = nd::Array2::<f32>::zeros((nr_frames, 3));
             let mut current_body_scales = nd::Array2::<f32>::zeros((nr_frames, 3));
@@ -308,7 +334,6 @@ fn from_scene_on_backend<B: Backend>(
                 gltf_codec.morph_targets = Some(full_morph_targets);
             }
             for global_frame_idx in 0..nr_frames {
-                keyframe_times.push((global_frame_idx as f32) / fps);
                 if global_frame_idx < anim.start_offset || global_frame_idx > anim.start_offset + anim.num_animation_frames() {
                     continue;
                 }
@@ -327,8 +352,10 @@ fn from_scene_on_backend<B: Backend>(
                     let mut pose_retarget_local = RetargetPoseYShift::clone(pose_retarget);
                     pose_retarget_local.apply(&mut pose);
                 }
-                current_body_rotations.slice_mut(s![.., global_frame_idx, ..]).assign(&pose.joint_poses);
-                let mut skeleton_root_translation = pose.global_trans.to_owned();
+                current_body_rotations
+                    .slice_mut(s![.., global_frame_idx, ..])
+                    .assign(&pose.joint_poses.to_ndarray());
+                let mut skeleton_root_translation = pose.global_trans.to_ndarray().to_owned();
                 let root_translation = smpl_output.joints.to_ndarray().slice(s![0, ..]).to_owned();
                 skeleton_root_translation = skeleton_root_translation + root_translation;
                 current_body_translations
@@ -342,11 +369,11 @@ fn from_scene_on_backend<B: Backend>(
                     let pose_blend_weights = &smpl_model.compute_pose_feature(&pose);
                     current_per_frame_blend_weights
                         .slice_mut(s![global_frame_idx, 0..metadata.num_pose_blend_shapes])
-                        .assign(pose_blend_weights);
+                        .assign(&pose_blend_weights.to_ndarray());
                     if global_frame_idx == (anim.start_offset + anim.num_animation_frames()) {
                         current_per_frame_blend_weights
                             .slice_mut(s![global_frame_idx..nr_frames, 0..metadata.num_pose_blend_shapes])
-                            .assign(pose_blend_weights);
+                            .assign(&pose_blend_weights.to_ndarray());
                     }
                     running_idx_morph_target += metadata.num_pose_blend_shapes + 1;
                 }
@@ -354,8 +381,9 @@ fn from_scene_on_backend<B: Backend>(
                 if should_export_exprdirs {
                     let expr_opt = anim.get_expression_at_idx(local_frame_idx);
                     if let Some(expr) = expr_opt.as_ref() {
-                        let max_nr_expr_coeffs = num_expression_blend_shapes.min(expr.expr_coeffs.len());
-                        let expr_coeffs = expr.expr_coeffs.slice(s![0..max_nr_expr_coeffs]);
+                        let expr_nd = expr.expr_coeffs.to_ndarray();
+                        let max_nr_expr_coeffs = num_expression_blend_shapes.min(expr_nd.len());
+                        let expr_coeffs = expr_nd.slice(s![0..max_nr_expr_coeffs]);
                         current_per_frame_blend_weights
                             .slice_mut(s![
                                 global_frame_idx,
@@ -366,7 +394,6 @@ fn from_scene_on_backend<B: Backend>(
                     running_idx_morph_target += num_expression_blend_shapes + 1;
                 }
             }
-            gltf_codec.keyframe_times = Some(keyframe_times);
             current_body.body_scales = Some(current_body_scales);
             current_body.body_translations = Some(current_body_translations);
             current_body.body_rotations = Some(current_body_rotations);
@@ -386,6 +413,35 @@ fn from_scene_on_backend<B: Backend>(
         }
         current_body.default_joint_translations = Some(smpl_joints);
         gltf_codec.per_body_data.push(current_body);
+    }
+    let mut query_props = scene
+        .world
+        .query::<(&Verts, &Faces, &TransformSequence, Option<&UVs>, Option<&DiffuseImg>, &Name)>();
+    for (_entity, (verts, faces, transform_sequence, uv, diffuse_img, _name)) in query_props.iter() {
+        let scales_vec3 = transform_sequence.scales.iter().flat_map(|s| vec![*s, *s, *s]).collect::<Vec<f32>>();
+        let scales_ndarray3 = nd::Array2::from_shape_vec((transform_sequence.num_frames(), 3), scales_vec3).unwrap();
+        let prop_data = PropData {
+            positions: verts.0.to_ndarray().into_nalgebra(),
+            faces: faces.0.to_ndarray().into_nalgebra(),
+            normals: None,
+            uvs: uv.map(|uv| uv.0.to_ndarray().into_nalgebra()),
+            diffuse_texture: diffuse_img.and_then(|diffuse_img| {
+                diffuse_img
+                    .generic_img
+                    .cpu_img
+                    .as_ref()
+                    .map(|img| get_image(img, false, options.max_texture_size))
+            }),
+            metalness_texture: None,
+            roughness_texture: None,
+            normals_texture: None,
+            translations: transform_sequence.translations.clone(),
+            rotations: transform_sequence.rotations.clone().insert_axis(nd::Axis(0)),
+            scales: scales_ndarray3.clone(),
+            default_translation: nd::Array2::<f32>::zeros([1, 3]),
+            default_joint_poses: nd::Array2::<f32>::zeros([1, 3]),
+        };
+        gltf_codec.props.push(prop_data);
     }
     info!(
         "Writing {} body scene to GltfCodec: Took {} seconds for {} frames",
