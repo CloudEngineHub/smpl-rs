@@ -211,7 +211,7 @@ impl<B: Backend> PoseG<B> {
         let vec_quats = all_quats.split(self.joint_poses.dims()[0], 0);
         let cur_quats = vec_quats[0].clone();
         let other_quats = vec_quats[1].clone();
-        let interpolated_quats = smpl_utils::numerical::quaternion_interpolate_lerp_fast(cur_quats, other_quats, other_weight);
+        let interpolated_quats = smpl_utils::numerical::quaternion_interpolate_lerp(cur_quats, other_quats, other_weight);
         let new_joint_poses = smpl_utils::numerical::quaternion_to_axis_angle_fast(interpolated_quats);
         PoseG::new(new_joint_poses, new_global_trans, self.up_axis, self.smpl_type)
     }

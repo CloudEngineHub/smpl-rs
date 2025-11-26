@@ -138,12 +138,6 @@ pub fn quaternion_interpolate_lerp<B: Backend>(lhs: Tensor<B, 2>, other: Tensor<
     let lerp_norm_sq = lerp_result.clone().powf_scalar(2.0).sum_dim(1);
     lerp_result / (lerp_norm_sq.sqrt() + eps)
 }
-pub fn quaternion_interpolate_lerp_fast<B: Backend>(lhs: Tensor<B, 2>, other: Tensor<B, 2>, other_weight: f32) -> Tensor<B, 2> {
-    let eps = 1e-6f32;
-    let lerp_result = lhs * (1.0 - other_weight) + other * other_weight;
-    let lerp_norm_sq = lerp_result.clone().powf_scalar(2.0).sum_dim(1);
-    lerp_result / (lerp_norm_sq.sqrt() + eps)
-}
 pub fn map(value: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
     let value_clamped = clamp(value, in_min, in_max);
     out_min + (out_max - out_min) * (value_clamped - in_min) / (in_max - in_min)
