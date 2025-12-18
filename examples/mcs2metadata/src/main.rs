@@ -97,29 +97,26 @@ fn main() {
             },
         })
         .collect();
-    let camera_track = mcs_codec.camera_track.as_ref().unwrap();
+    let smpl_camera = mcs_codec.smpl_camera.as_ref().unwrap();
     let intrinsics = CameraIntrinsics {
-        yfov: camera_track.yfov,
-        znear: camera_track.znear,
-        aspect_ratio: camera_track.aspect_ratio,
+        yfov: smpl_camera.projection.fovy,
+        znear: smpl_camera.projection.near,
+        aspect_ratio: Some(smpl_camera.projection.aspect_ratio),
     };
     let extrinsics = if args.show_extrinsics {
-        match (&camera_track.per_frame_translations, &camera_track.per_frame_rotations) {
-            (Some(translations), Some(rotations)) => {
-                let extrinsics_3d = extract_extrinsics_from_rot_trans(translations, rotations);
-                let num_frames = extrinsics_3d.shape()[0];
-                Some(
-                    (0..num_frames)
-                        .map(|frame| {
-                            let extrinsic = extrinsics_3d.slice(s![frame, .., ..]);
-                            let matrix: [[f32; 4]; 4] = std::array::from_fn(|i| std::array::from_fn(|j| extrinsic[[i, j]]));
-                            FrameExtrinsics { frame, extrinsics: matrix }
-                        })
-                        .collect(),
-                )
-            }
-            _ => None,
-        }
+        let translations = smpl_camera.transform_sequence.translations.clone();
+        let rotations = smpl_camera.transform_sequence.get_rotations_as_quaternions();
+        let extrinsics_3d = extract_extrinsics_from_rot_trans(&translations, &rotations);
+        let num_frames = extrinsics_3d.shape()[0];
+        Some(
+            (0..num_frames)
+                .map(|frame| {
+                    let extrinsic = extrinsics_3d.slice(s![frame, .., ..]);
+                    let matrix: [[f32; 4]; 4] = std::array::from_fn(|i| std::array::from_fn(|j| extrinsic[[i, j]]));
+                    FrameExtrinsics { frame, extrinsics: matrix }
+                })
+                .collect(),
+        )
     } else {
         None
     };

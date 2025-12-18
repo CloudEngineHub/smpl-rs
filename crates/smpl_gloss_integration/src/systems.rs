@@ -1,5 +1,5 @@
 use crate::codec::SmplCodecGloss;
-use crate::components::{Follow, FollowParams, Follower, FollowerType, GlossInterop};
+use crate::components::{CameraTakeover, Follow, FollowParams, Follower, FollowerType, GlossInterop};
 use crate::conversions::{update_entity_on_backend, update_entity_on_backend_wgpu};
 use crate::gltf::GltfInteropOptions;
 use crate::scene::SceneAnimation;
@@ -15,8 +15,9 @@ use gloss_burn_multibackend::backend::MultiDevice;
 use gloss_geometry::geom::{self, PerVertexNormalsWeightingType};
 use gloss_hecs::Entity;
 use gloss_hecs::{Changed, CommandBuffer};
-use gloss_renderer::components::{Colors, Faces, Normals, Tangents, UVs};
+use gloss_renderer::components::{Colors, Faces, Normals, Projection, ProjectionWithFov, Tangents, UVs};
 use gloss_renderer::plugin_manager::gui::{GuiWindow, GuiWindowType};
+use gloss_renderer::selector::Selector;
 use gloss_renderer::{
     components::{ConfigChanges, ModelMatrix, PosLookat, Renderable, Verts},
     plugin_manager::{
@@ -25,6 +26,7 @@ use gloss_renderer::{
     },
     scene::Scene,
 };
+use gloss_utils::abi_stable_aliases::std_types::ROption::RSome;
 use gloss_utils::abi_stable_aliases::std_types::{RNone, ROption, RString, RVec};
 use gloss_utils::{
     bshare::{ToBurn, ToNalgebraFloat, ToNalgebraInt, ToNdArray},
@@ -34,7 +36,6 @@ use gloss_utils::{
 use log::{info, warn};
 use nalgebra::{self as na};
 use smpl_core::codec::gltf::GltfExportOptions;
-use smpl_core::codec::scene::CameraTrack;
 use smpl_core::common::animation::AnimationConfig;
 use smpl_core::common::smpl_model::{SmplCache, SmplModel};
 use smpl_core::common::transform_sequence::TransformSequence;
@@ -102,15 +103,13 @@ pub extern "C" fn smpl_auto_add_scene(scene: &mut Scene, _runner: &mut RunnerSta
                 selected_fps = selected_fps.min(smpl_anim.config.fps);
                 anim_config = smpl_anim.config.clone();
             }
-            let mut camera_query_state = scene.world.query::<&CameraTrack>();
+            let mut camera_query_state = scene.world.query::<(&ProjectionWithFov, &TransformSequence)>();
             let num_cam_ents = camera_query_state.iter().len();
-            for (_, camera_track) in camera_query_state.iter() {
-                if let Some(translations) = camera_track.per_frame_translations.as_ref() {
-                    let last_frame_idx = translations.nrows();
-                    selected_num_frames = selected_num_frames.max(last_frame_idx);
-                    if num_smpl_ents == 0 {
-                        selected_fps = 60.0;
-                    }
+            for (_, (_projection, transform_sequence)) in camera_query_state.iter() {
+                let last_frame_idx = transform_sequence.num_frames();
+                selected_num_frames = selected_num_frames.max(last_frame_idx);
+                if num_smpl_ents == 0 {
+                    selected_fps = 60.0;
                 }
             }
             num_ents = num_smpl_ents + num_cam_ents;
@@ -125,7 +124,7 @@ pub extern "C" fn smpl_auto_add_scene(scene: &mut Scene, _runner: &mut RunnerSta
         }
     }
 }
-/// System to add a ``SmplInterval`` to entities in case it doesn't already exist
+/// Auto add follow for all smpl entities
 pub extern "C" fn smpl_auto_add_follow(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
@@ -598,23 +597,44 @@ pub extern "C" fn smpl_follow_anim(scene: &mut Scene, runner: &mut RunnerState) 
         let Ok(mut follow) = scene.get_resource::<&mut Follower>() else {
             return;
         };
-        let mut query_state = scene.world.query::<&Follow>().with::<&Renderable>();
         let mut goal = na::Point3::new(0.0, 0.0, 0.0);
-        let mut num_ents = 0;
-        for (entity, _) in query_state.iter() {
-            let model_matrix = if let Ok(mm) = scene.world.get::<&mut ModelMatrix>(entity) {
-                mm.0
-            } else {
-                ModelMatrix::default().0
-            };
-            let Some(ent_goal) = compute_follower_goal(scene, entity, model_matrix) else {
-                continue;
-            };
-            goal.coords += ent_goal.coords;
-            num_ents += 1;
+        let mut entity_selected = false;
+        if let Ok(selected_entity) = scene.get_resource::<&Selector>() {
+            if let Some(current_selected) = &selected_entity.current_selected {
+                if let Some(entity) = scene.get_entity_with_name(current_selected) {
+                    if scene.world.has::<Follow>(entity).unwrap() {
+                        let model_matrix = if let Ok(mm) = scene.world.get::<&mut ModelMatrix>(entity) {
+                            mm.0
+                        } else {
+                            ModelMatrix::default().0
+                        };
+                        let Some(ent_goal) = compute_follower_goal(scene, entity, model_matrix) else {
+                            return;
+                        };
+                        goal.coords = ent_goal.coords;
+                        entity_selected = true;
+                    }
+                }
+            }
         }
-        if num_ents > 0 {
-            goal.coords /= num_ents as f32;
+        if !entity_selected {
+            let mut query_state = scene.world.query::<&Follow>().with::<&Renderable>();
+            let mut num_ents = 0;
+            for (entity, _) in query_state.iter() {
+                let model_matrix = if let Ok(mm) = scene.world.get::<&mut ModelMatrix>(entity) {
+                    mm.0
+                } else {
+                    ModelMatrix::default().0
+                };
+                let Some(ent_goal) = compute_follower_goal(scene, entity, model_matrix) else {
+                    continue;
+                };
+                goal.coords += ent_goal.coords;
+                num_ents += 1;
+            }
+            if num_ents > 0 {
+                goal.coords /= num_ents as f32;
+            }
         }
         #[allow(clippy::match_wildcard_for_single_variants)]
         match follow.params.follower_type {
@@ -679,9 +699,9 @@ fn compute_follower_goal(scene: &Scene, entity: Entity, model_matrix: na::Simila
         None
     }
 }
-/// System to apply global transforms to props in the scene
+/// System to apply global transforms to any entity with a `TransformSequence` in the scene
 #[allow(clippy::too_many_lines)]
-pub extern "C" fn prop_transform_sequence(scene: &mut Scene, _runner: &mut RunnerState) {
+pub extern "C" fn apply_transform_sequence(scene: &mut Scene, _runner: &mut RunnerState) {
     let mut command_buffer = CommandBuffer::new();
     {
         if let Ok(scene_anim) = scene.get_resource::<&mut SceneAnimation>() {
@@ -694,6 +714,83 @@ pub extern "C" fn prop_transform_sequence(scene: &mut Scene, _runner: &mut Runne
         }
     }
     command_buffer.run_on(&mut scene.world);
+}
+pub extern "C" fn reset_camera_takeover(scene: &mut Scene, _runner: &mut RunnerState) {
+    let (initial_up, initial_projection) = {
+        let Ok(mut camera_takeover) = scene.get_resource::<&mut CameraTakeover>() else {
+            return;
+        };
+        if camera_takeover.is_changed() && !camera_takeover.enabled {
+            (camera_takeover.initial_up_vector.take(), camera_takeover.initial_projection.take())
+        } else {
+            return;
+        }
+    };
+    let viewing_cam = scene.get_current_cam().unwrap();
+    if viewing_cam.is_initialized(scene) {
+        if let Some(up) = initial_up {
+            if let Ok(mut poslookat) = scene.world.get::<&mut PosLookat>(viewing_cam.entity) {
+                poslookat.up = up;
+            }
+        }
+        if let Some(projection) = initial_projection {
+            let _ = scene.world.insert(viewing_cam.entity, (projection,));
+        }
+    }
+}
+/// System to make the viewing camera follow a mcs scene camera's transform
+/// This allows "becoming" the animated camera in the scene
+pub extern "C" fn set_camera_takeover(scene: &mut Scene, _runner: &mut RunnerState) {
+    let Ok(mut camera_takeover) = scene.get_resource::<&mut CameraTakeover>() else {
+        return;
+    };
+    if !camera_takeover.enabled {
+        return;
+    }
+    let target_entity = camera_takeover.target_camera_entity;
+    let position_offset = camera_takeover.position_offset;
+    let Ok(smpl_camera_proj) = scene.world.get::<&ProjectionWithFov>(target_entity) else {
+        warn!(
+            "CameraTakeover: Camera entity with ID '{}' has no Projection component",
+            target_entity.id()
+        );
+        return;
+    };
+    let Ok(model_matrix) = scene.world.get::<&ModelMatrix>(target_entity) else {
+        warn!("CameraTakeover: Camera entity with ID '{}' has no ModelMatrix", target_entity.id());
+        return;
+    };
+    let viewing_cam = scene.get_current_cam().unwrap();
+    if !viewing_cam.is_initialized(scene) {
+        return;
+    }
+    if let Ok(mut poslookat) = scene.world.get::<&mut PosLookat>(viewing_cam.entity) {
+        let similarity = model_matrix.0;
+        let camera_position = similarity.isometry.translation.vector;
+        let camera_rotation = similarity.isometry.rotation;
+        let local_forward = na::Vector3::new(0.0, 0.0, -1.0);
+        let local_up = na::Vector3::new(0.0, 1.0, 0.0);
+        let world_forward = camera_rotation * local_forward;
+        let world_up = camera_rotation * local_up;
+        let offset_position = camera_position - world_forward * position_offset;
+        let camera_pos = na::Point3::from(offset_position);
+        let lookat_point = na::Point3::from(offset_position + world_forward * 1.0);
+        if camera_takeover.initial_up_vector.is_none() {
+            camera_takeover.initial_up_vector = Some(poslookat.up);
+        }
+        poslookat.position = camera_pos;
+        poslookat.lookat = lookat_point;
+        poslookat.up = world_up;
+    }
+    if let Ok(mut projection) = scene.world.get::<&mut Projection>(viewing_cam.entity) {
+        if camera_takeover.initial_projection.is_none() {
+            camera_takeover.initial_projection = Some(projection.clone());
+        }
+        *projection = Projection::WithFov(ProjectionWithFov {
+            fovy: smpl_camera_proj.fovy,
+            ..Default::default()
+        });
+    }
 }
 /// Hides the floor if the camera is below it
 pub extern "C" fn hide_floor_when_viewed_from_below(scene: &mut Scene, _runner: &mut RunnerState) {
@@ -1124,6 +1221,58 @@ pub extern "C" fn smpl_interop_gui(selected_entity: &ROption<Entity>, scene: &mu
     }
     GuiWindow {
         window_name: RString::from("GlossInterop"),
+        window_type: GuiWindowType::Sidebar,
+        widgets,
+    }
+}
+#[allow(missing_docs)]
+#[cfg(feature = "with-gui")]
+#[allow(clippy::semicolon_if_nothing_returned)]
+#[cfg_attr(target_arch = "wasm32", allow(improper_ctypes_definitions))]
+pub extern "C" fn camera_gui(_selected_entity: &ROption<Entity>, scene: &mut Scene) -> GuiWindow {
+    extern "C" fn camera_takeover_toggle(new_val: bool, _widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
+        if new_val {
+            if scene.has_resource::<CameraTakeover>() {
+                if let Ok(mut takeover) = scene.get_resource::<&mut CameraTakeover>() {
+                    takeover.enabled = true;
+                }
+            }
+        } else if let Ok(mut takeover) = scene.get_resource::<&mut CameraTakeover>() {
+            takeover.enabled = false;
+        }
+    }
+    extern "C" fn position_offset_slider_change(new_val: f32, _widget_name: &RString, _entity: &Entity, scene: &mut Scene) {
+        if let Ok(mut takeover) = scene.get_resource::<&mut CameraTakeover>() {
+            takeover.position_offset = new_val;
+        }
+    }
+    let mut widgets = RVec::new();
+    let takeover_enabled = if let Ok(takeover) = scene.get_resource::<&CameraTakeover>() {
+        takeover.enabled
+    } else {
+        false
+    };
+    let position_offset = if let Ok(takeover) = scene.get_resource::<&CameraTakeover>() {
+        takeover.position_offset
+    } else {
+        0.0
+    };
+    let checkbox_takeover = Checkbox::new("Follow Camera", takeover_enabled, camera_takeover_toggle);
+    widgets.push(Widgets::Checkbox(checkbox_takeover));
+    if takeover_enabled {
+        let slider_position_offset = Slider::new(
+            "Position Offset",
+            position_offset,
+            0.0,
+            10.0,
+            RSome(100.0),
+            position_offset_slider_change,
+            RNone,
+        );
+        widgets.push(Widgets::Slider(slider_position_offset));
+    }
+    GuiWindow {
+        window_name: RString::from("Smpl Camera"),
         window_type: GuiWindowType::Sidebar,
         widgets,
     }

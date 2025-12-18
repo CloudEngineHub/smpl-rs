@@ -1,17 +1,14 @@
 use gloss_burn_multibackend::global_backend::init_global_burn_backend;
 use gloss_burn_multibackend::global_backend::GlobalBackend;
-use gloss_renderer::components::Name;
 use gloss_renderer::viewer::Viewer;
 use gloss_renderer::{config::LogLevel, gloss_setup_logger};
 use smpl_core::codec::scene::McsCodec;
 use smpl_core::common::animation::{AnimWrap, AnimationConfig};
 use smpl_core::common::{
-    betas::Betas,
     smpl_model::SmplCache,
     types::{Gender, SmplType},
 };
 use smpl_gloss_integration::{
-    components::GlossInterop,
     plugin::SmplPlugin,
     scene::{McsCodecGloss, SceneAnimation},
 };
@@ -23,21 +20,9 @@ fn main() {
     let mut viewer = Viewer::new(config_path.to_str());
     let mut smpl_models = SmplCache::default();
     smpl_models.set_lazy_loading(SmplType::SmplX, Gender::Neutral, "./data/smplx/SMPLX_neutral_array_f32_slim.npz");
-    let scene_path = "data/mcs/football.mcs";
+    let scene_path = "data/mcs/red_shirt_guy.mcs";
     let mut mcs_codec = McsCodec::from_file(scene_path);
-    let builders = mcs_codec.to_entity_builders(true);
-    for mut builder in builders {
-        if !builder.has::<Betas>() {
-            builder.add(Betas::default());
-        }
-        let gloss_interop = GlossInterop::default();
-        let name = builder.get::<&Name>().unwrap().0.clone();
-        viewer
-            .scene_mut()
-            .get_or_create_entity(&name)
-            .insert_builder(builder)
-            .insert(gloss_interop);
-    }
+    mcs_codec.insert_into_scene(viewer.scene_mut(), true);
     if let Some(frame_rate) = mcs_codec.frame_rate {
         let config = AnimationConfig {
             fps: frame_rate,

@@ -46,10 +46,50 @@ impl TransformSequence {
             scales,
         }
     }
+    /// Create a `TransformSequence` from a translations and quaternion rotations
+    pub fn new_from_rot_trans(rot: &nd::Array2<f32>, trans: &nd::Array2<f32>) -> Self {
+        assert_eq!(
+            rot.shape()[1],
+            4,
+            "Rotations must be in quaternion format (nr_frames x 4); found rotations of shape {:?}",
+            rot.shape()
+        );
+        let num_frames = rot.shape()[0];
+        let mut rotations = nd::Array2::<f32>::zeros((num_frames, 3));
+        for i in 0..num_frames {
+            let quat_slice = rot.slice(s![i, ..]);
+            let quat = na::Quaternion::new(quat_slice[3], quat_slice[0], quat_slice[1], quat_slice[2]);
+            let unit_quat = na::UnitQuaternion::from_quaternion(quat);
+            let axis_angle = unit_quat.scaled_axis();
+            rotations[[i, 0]] = axis_angle.x;
+            rotations[[i, 1]] = axis_angle.y;
+            rotations[[i, 2]] = axis_angle.z;
+        }
+        let scales = nd::Array1::<f32>::ones(trans.shape()[0]);
+        Self {
+            translations: trans.clone(),
+            rotations,
+            scales,
+        }
+    }
     /// Duration of the animation
     #[allow(clippy::cast_precision_loss)]
     pub fn duration(&self, fps: f32) -> Duration {
         Duration::from_secs_f32(self.num_frames() as f32 / fps)
+    }
+    pub fn get_rotations_as_quaternions(&self) -> nd::Array2<f32> {
+        let num_frames = self.rotations.shape()[0];
+        let mut quaternions = nd::Array2::<f32>::zeros((num_frames, 4));
+        for i in 0..num_frames {
+            let rotation = self.rotations.slice(s![i, ..]);
+            let aa_rotation = na::Vector3::from_row_slice(rotation.as_slice().unwrap());
+            let quaternion = na::UnitQuaternion::from_scaled_axis(aa_rotation);
+            quaternions[[i, 0]] = quaternion.i;
+            quaternions[[i, 1]] = quaternion.j;
+            quaternions[[i, 2]] = quaternion.k;
+            quaternions[[i, 3]] = quaternion.w;
+        }
+        quaternions
     }
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_possible_truncation)]
@@ -88,5 +128,17 @@ impl TransformSequence {
     /// Get the number of frames in the `TransformSequence`.
     pub fn num_frames(&self) -> usize {
         self.translations.shape()[0]
+    }
+    /// Returns a new `TransformSequence` cropped from the start frame to the end frame.
+    #[must_use]
+    pub fn crop(&self, start_frame: usize, end_frame: usize) -> Self {
+        assert!(start_frame < end_frame, "Start frame must be less than end frame");
+        assert!(start_frame < self.num_frames(), "Start frame must be less than number of frames");
+        assert!(end_frame <= self.num_frames(), "End frame must be less than or equal to number of frames");
+        Self {
+            translations: self.translations.slice(s![start_frame..end_frame, ..]).to_owned(),
+            rotations: self.rotations.slice(s![start_frame..end_frame, ..]).to_owned(),
+            scales: self.scales.slice(s![start_frame..end_frame]).to_owned(),
+        }
     }
 }

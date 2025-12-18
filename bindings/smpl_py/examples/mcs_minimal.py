@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # get paths to all the data needed for this entity
     path_data = osp.join(osp.dirname(osp.realpath(__file__)), "../../../data/smplx")
     path_data_mcs = osp.join(osp.dirname(osp.realpath(__file__)), "../../../data/mcs")
-    path_mcs = os.path.join(path_data_mcs, "football.mcs")
+    path_mcs = os.path.join(path_data_mcs, "red_shirt_guy.mcs")
     assert os.path.exists(path_mcs), "File does not exist"
 
     # Follow instructions in the README to generate these .npz files

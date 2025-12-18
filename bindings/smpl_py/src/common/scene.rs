@@ -57,6 +57,6 @@ impl PyMcsCodec {
     }
     #[getter]
     pub fn has_camera(&self) -> bool {
-        self.inner.camera_track.is_some()
+        self.inner.smpl_camera.is_some()
     }
 }

@@ -25,16 +25,29 @@ smpl-core = { path = "crates/smpl_core", version = "0.8", default-features = fal
 smpl-gloss-integration = { path = "crates/smpl_gloss_integration", version = "0.8", default-features = false }
 smpl-utils = { path = "crates/smpl_utils", version = "0.8", default-features = false }
 
-easy-wgpu = {version = "0.8", default-features = false}
-gloss_py_macros = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-renderer = {version = "0.8", default-features = false}
-gloss-utils = {version = "0.8", default-features = false}
-gloss-img = {version = "0.8", default-features = false}
-gloss-hecs = {version = "0.8", default-features = false}
-gloss-geometry = {version = "0.8", default-features = false}
-gloss-burn-multibackend = {version = "0.8", default-features = false}
-wgpu-burn-interop = {version = "0.8", default-features = false}
-wgpu-burn-global-device = {version = "0.8", default-features = false}
+## When pushing smpl-rs crates to crates.io
+# easy-wgpu = {version = "0.8", default-features = false}
+# gloss_py_macros = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# gloss-renderer = {version = "0.8", default-features = false}
+# gloss-utils = {version = "0.8", default-features = false}
+# gloss-img = {version = "0.8", default-features = false}
+# gloss-hecs = {version = "0.8", default-features = false}
+# gloss-geometry = {version = "0.8", default-features = false}
+# gloss-burn-multibackend = {version = "0.8", default-features = false}
+# wgpu-burn-interop = {version = "0.8", default-features = false}
+# wgpu-burn-global-device = {version = "0.8", default-features = false}
+
+## When pushing only to GitHub, so that we dont need to keep publishing minor versions
+easy-wgpu = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss_py_macros = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-renderer = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-utils = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-img = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-hecs = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-geometry = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+gloss-burn-multibackend = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+wgpu-burn-interop = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+wgpu-burn-global-device = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
 
 # =====================================================================
 # Third-party crates

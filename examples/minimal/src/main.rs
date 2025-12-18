@@ -36,7 +36,7 @@ fn main() {
         .insert(
             entity,
             (
-                SmplParams::new(SmplType::SmplX, Gender::Neutral, true),
+                SmplParams::new(SmplType::SmplX, Gender::Female, true),
                 Betas::new_empty(10),
                 Expression::new_empty(50, FaceType::SmplX),
                 Animation::new_from_npz(

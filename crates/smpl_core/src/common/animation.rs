@@ -234,7 +234,6 @@ impl Animation {
             )
             .unwrap();
             let per_frame_expression_coeffs = codec.expression_parameters.clone();
-            println!("per_frame_expression_coeffs {:?}", per_frame_expression_coeffs.is_some());
             let config = AnimationConfig {
                 smpl_type: codec.smpl_type(),
                 wrap_behaviour,

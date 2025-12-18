@@ -1,3 +1,5 @@
+use gloss_hecs::Entity;
+use gloss_renderer::components::Projection;
 use nalgebra as na;
 use smpl_utils::numerical::{map, smootherstep};
 use std::ops::AddAssign;
@@ -86,5 +88,28 @@ impl Follower {
     /// Reset the follower
     pub fn reset(&mut self) {
         self.is_first_time = true;
+    }
+}
+/// Resource to indicate that the viewing camera should follow the scene camera's transform
+#[derive(Clone)]
+pub struct CameraTakeover {
+    pub enabled: bool,
+    pub target_camera_entity: Entity,
+    pub position_offset: f32,
+    pub initial_up_vector: Option<na::Vector3<f32>>,
+    pub initial_projection: Option<Projection>,
+}
+impl CameraTakeover {
+    pub fn new(target_camera_entity: Entity) -> Self {
+        Self {
+            enabled: false,
+            target_camera_entity,
+            position_offset: 0.0,
+            initial_up_vector: None,
+            initial_projection: None,
+        }
+    }
+    pub fn toggle(&mut self) {
+        self.enabled = !self.enabled;
     }
 }

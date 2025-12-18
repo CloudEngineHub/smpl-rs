@@ -1,5 +1,7 @@
 use super::codec::SmplCodec;
+use crate::common::transform_sequence::TransformSequence;
 use base64;
+use gloss_renderer::components::ProjectionWithFov;
 use gltf_json::{validation::Checked::Valid, Root, Value};
 use log::info;
 use ndarray as nd;
@@ -9,51 +11,25 @@ use std::{
     io::Read,
     path::Path,
 };
-/// The ``CameraTrack`` contains the camera track data in the scene
-#[derive(Debug, Clone)]
-pub struct CameraTrack {
-    pub yfov: f32,
-    pub znear: f32,
-    pub zfar: Option<f32>,
-    pub aspect_ratio: Option<f32>,
-    pub per_frame_translations: Option<nd::Array2<f32>>,
-    pub per_frame_rotations: Option<nd::Array2<f32>>,
-}
-impl Default for CameraTrack {
-    fn default() -> Self {
-        Self {
-            yfov: 1.0,
-            znear: 0.1,
-            zfar: None,
-            aspect_ratio: None,
-            per_frame_translations: None,
-            per_frame_rotations: None,
-        }
-    }
-}
-impl CameraTrack {
-    /// Returns the number of frames in the camera track. If the camera track is static, returns 0
-    pub fn num_frames(&self) -> usize {
-        if let Some(per_frame_translations) = &self.per_frame_translations {
-            per_frame_translations.shape()[0]
-        } else {
-            0
-        }
-    }
-}
 /// The ``McsCodec`` contains all of the contents of an ``.mcs`` file
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct McsCodec {
     pub num_frames: usize,
     pub frame_rate: Option<f32>,
     pub smpl_bodies: Vec<SmplBody>,
-    pub camera_track: Option<CameraTrack>,
+    pub smpl_camera: Option<SmplCamera>,
 }
 /// ``SmplBody`` holds the contents of the ``.smpl`` file along with the frame presence
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SmplBody {
     pub frame_presence: Vec<usize>,
     pub codec: SmplCodec,
+}
+/// ``SmplCamera`` holds the information regarding the camera track
+#[derive(Clone)]
+pub struct SmplCamera {
+    pub projection: ProjectionWithFov,
+    pub transform_sequence: TransformSequence,
 }
 /// ``McsCodec`` for ``.mcs`` files
 #[allow(clippy::cast_possible_truncation)]
@@ -86,7 +62,7 @@ impl McsCodec {
                 num_frames,
                 frame_rate: smpl_bodies.first().and_then(|b| b.codec.frame_rate),
                 smpl_bodies,
-                camera_track: Self::extract_camera_track(gltf),
+                smpl_camera: Self::extract_gltf_camera(gltf),
             }
         } else {
             panic!("Not able to find GLTF root! Check the GLTF file format!")
@@ -130,46 +106,46 @@ impl McsCodec {
             .unwrap_or_default()
     }
     /// Extract camera track from `.mcs` file
-    fn extract_camera_track(gltf: &Root) -> Option<CameraTrack> {
+    fn extract_gltf_camera(gltf: &Root) -> Option<SmplCamera> {
         if let Some(camera) = gltf.cameras.first() {
             let (yfov, znear, zfar, aspect_ratio) = match camera.type_.unwrap() {
                 gltf_json::camera::Type::Perspective => (
                     camera.perspective.as_ref().map_or(std::f32::consts::FRAC_PI_2, |p| p.yfov),
                     camera.perspective.as_ref().map_or(0.1, |p| p.znear),
-                    camera.perspective.as_ref().and_then(|p| p.zfar),
-                    camera.perspective.as_ref().and_then(|p| p.aspect_ratio),
+                    camera.perspective.as_ref().map_or(1000.0, |p| p.zfar.unwrap_or(1000.0)),
+                    camera.perspective.as_ref().map_or(1.0, |p| p.aspect_ratio.unwrap_or(1.0)),
                 ),
                 gltf_json::camera::Type::Orthographic => {
                     panic!("Orthographic camera not supported!")
                 }
             };
             if gltf.animations.is_empty() {
-                let mut static_translation = None;
-                let mut static_rotation = None;
+                let mut static_translation = nd::Array2::<f32>::zeros((1, 3));
+                let mut static_rotation = nd::array![[0.0, 0.0, 0.0, 1.0]];
                 for node in &gltf.nodes {
                     if node.camera.is_some() {
                         if let Some(translation) = &node.translation {
-                            static_translation =
-                                Some(nd::Array2::from_shape_vec((1, 3), vec![translation[0], translation[1], translation[2]]).unwrap());
+                            static_translation = nd::Array2::from_shape_vec((1, 3), vec![translation[0], translation[1], translation[2]]).unwrap();
                         }
                         if let Some(rotation) = &node.rotation {
                             let quat = rotation.0;
-                            static_rotation = Some(nd::Array2::from_shape_vec((1, 4), vec![quat[0], quat[1], quat[2], quat[3]]).unwrap());
+                            static_rotation = nd::Array2::from_shape_vec((1, 4), vec![quat[0], quat[1], quat[2], quat[3]]).unwrap();
                         }
                         break;
                     }
                 }
-                return Some(CameraTrack {
-                    yfov,
-                    znear,
-                    zfar,
-                    aspect_ratio,
-                    per_frame_translations: static_translation,
-                    per_frame_rotations: static_rotation,
+                return Some(SmplCamera {
+                    projection: ProjectionWithFov {
+                        fovy: yfov,
+                        near: znear,
+                        far: zfar,
+                        aspect_ratio,
+                    },
+                    transform_sequence: TransformSequence::new_from_rot_trans(&static_rotation, &static_translation),
                 });
             }
-            let mut per_frame_translations = None;
-            let mut per_frame_rotations = None;
+            let mut per_frame_translations: Option<nd::Array2<f32>> = None;
+            let mut per_frame_rotations: Option<nd::Array2<f32>> = None;
             for animation in &gltf.animations {
                 for channel in &animation.channels {
                     let target = &channel.target;
@@ -214,13 +190,17 @@ impl McsCodec {
                     }
                 }
             }
-            Some(CameraTrack {
-                yfov,
-                znear,
-                zfar,
-                aspect_ratio,
-                per_frame_translations,
-                per_frame_rotations,
+            Some(SmplCamera {
+                projection: ProjectionWithFov {
+                    fovy: yfov,
+                    near: znear,
+                    far: zfar,
+                    aspect_ratio,
+                },
+                transform_sequence: TransformSequence::new_from_rot_trans(
+                    &per_frame_rotations.unwrap_or(nd::array![[0.0, 0.0, 0.0, 1.0]]),
+                    &per_frame_translations.unwrap_or(nd::Array2::<f32>::zeros((1, 3))),
+                ),
             })
         } else {
             None
@@ -247,7 +227,6 @@ impl McsCodec {
     }
     /// Create the base empty Mcs structure
     pub fn create_gltf_structure(&self) -> Value {
-        let has_camera_track = self.camera_track.is_some();
         let mut gltf_json = serde_json::json!(
             { "asset" : { "version" : "2.0", "generator" : "smpl-rs McsCodec Exporter" },
             "scene" : 0, "scenes" : [{ "nodes" : [0], "extensions" : {
@@ -255,17 +234,17 @@ impl McsCodec {
             } } }], "buffers" : [], "bufferViews" : [], "accessors" : [], "animations" :
             [], "extensionsUsed" : ["MC_scene_description"] }
         );
-        if has_camera_track {
+        if let Some(smpl_camera) = &self.smpl_camera {
             gltf_json["nodes"] = serde_json::json!(
                 [{ "name" : "RootNode", "children" : [1] }, { "name" : "AnimatedCamera",
                 "camera" : 0, "translation" : [0.0, 0.0, 0.0], "rotation" : [0.0, 0.0,
                 0.0, 1.0] }]
             );
             gltf_json["cameras"] = serde_json::json!(
-                [{ "type" : "perspective", "perspective" : { "yfov" : self.camera_track
-                .as_ref().unwrap().yfov, "znear" : self.camera_track.as_ref().unwrap()
-                .znear, "aspectRatio" : self.camera_track.as_ref().unwrap().aspect_ratio
-                } }]
+                [{ "type" : "perspective", "perspective" : { "yfov" : smpl_camera
+                .projection.fovy, "znear" : smpl_camera.projection.near, "zfar" :
+                smpl_camera.projection.far, "aspectRatio" : smpl_camera.projection
+                .aspect_ratio } }]
             );
         } else {
             gltf_json["nodes"] = serde_json::json!([{ "name" : "RootNode" }]);
@@ -304,8 +283,8 @@ impl McsCodec {
         #[allow(clippy::cast_precision_loss)]
         let times: Vec<f32> = (0..num_frames).map(|i| i as f32 / fps).collect();
         let time_bytes = times.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>();
-        let camera_positions = self.camera_track.as_ref().unwrap().per_frame_translations.as_ref().unwrap();
-        let camera_rotations = self.camera_track.as_ref().unwrap().per_frame_rotations.as_ref().unwrap();
+        let camera_positions = self.smpl_camera.as_ref().unwrap().transform_sequence.translations.clone();
+        let camera_rotations = self.smpl_camera.as_ref().unwrap().transform_sequence.get_rotations_as_quaternions();
         if camera_positions.dim().0 == 1 {
             if let Some(node) = gltf_json["nodes"].as_array_mut().and_then(|nodes| nodes.get_mut(1)) {
                 node["translation"] = serde_json::json!([camera_positions[[0, 0]], camera_positions[[0, 1]], camera_positions[[0, 2]]]);
@@ -385,7 +364,7 @@ impl McsCodec {
     pub fn to_gltf_json(&self) -> String {
         let mut gltf_json = self.create_gltf_structure();
         self.add_smpl_buffers_to_gltf(&mut gltf_json);
-        if self.camera_track.is_some() {
+        if self.smpl_camera.is_some() {
             self.add_camera_animation(&mut gltf_json);
         }
         serde_json::to_string_pretty(&gltf_json).unwrap()

@@ -1715,7 +1715,7 @@ dependencies = [
 [[package]]
 name = "easy-wgpu"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "bytemuck",
  "encase",
@@ -2562,7 +2562,7 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 [[package]]
 name = "gloss-burn-multibackend"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "burn",
  "log",
@@ -2573,7 +2573,7 @@ dependencies = [
 [[package]]
 name = "gloss-geometry"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "burn",
  "burn-cubecl",
@@ -2595,7 +2595,7 @@ dependencies = [
 [[package]]
 name = "gloss-hecs"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "abi_stable",
  "gloss-hecs-macros",
@@ -2610,7 +2610,7 @@ dependencies = [
 [[package]]
 name = "gloss-hecs-macros"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2620,7 +2620,7 @@ dependencies = [
 [[package]]
 name = "gloss-img"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "bytemuck",
  "image",
@@ -2630,7 +2630,7 @@ dependencies = [
 [[package]]
 name = "gloss-renderer"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "abi_stable",
  "burn",
@@ -2685,7 +2685,7 @@ dependencies = [
 [[package]]
 name = "gloss-utils"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "abi_stable",
  "burn",
@@ -2712,7 +2712,7 @@ dependencies = [
 [[package]]
 name = "gloss_py_macros"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6541,7 +6541,7 @@ dependencies = [
 [[package]]
 name = "wgpu-burn-global-device"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "burn",
  "burn-cubecl",
@@ -6554,7 +6554,7 @@ dependencies = [
 [[package]]
 name = "wgpu-burn-interop"
 version = "0.8.0"
-source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=6d110f71b98e60775b6d21adf4521f723de58929#6d110f71b98e60775b6d21adf4521f723de58929"
+source = "git+ssh://git@gitlab.com/meshcapade/graphics/gloss.git?rev=cc22f1d5a5eedeabe83403d1f718512769b0f114#cc22f1d5a5eedeabe83403d1f718512769b0f114"
 dependencies = [
  "burn",
  "burn-cubecl",

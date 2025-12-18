@@ -1,14 +1,19 @@
-use crate::{codec::SmplCodecGloss, components::GlossInterop};
+use crate::{
+    codec::SmplCodecGloss,
+    components::{CameraTakeover, GlossInterop},
+};
 use gloss_hecs::EntityBuilder;
 use gloss_renderer::{
-    components::{MeshColorType, Name, VisMesh},
+    builders::build_camera_frustum,
+    components::{MeshColorType, Name, ProjectionWithFov, VisMesh},
     scene::Scene,
+    selector::Selectable,
 };
 use log::info;
 use smpl_core::{
     codec::{
         codec::SmplCodec,
-        scene::{CameraTrack, McsCodec, SmplBody},
+        scene::{McsCodec, SmplBody, SmplCamera},
     },
     common::{
         animation::{AnimWrap, Animation, AnimationConfig, AnimationRunner},
@@ -16,6 +21,7 @@ use smpl_core::{
         pose::Pose,
         pose_override::PoseOverride,
         smpl_params::SmplParams,
+        transform_sequence::TransformSequence,
     },
 };
 use smpl_utils::numerical::hex_to_rgb_f32;
@@ -31,8 +37,11 @@ pub trait McsCodecGloss {
 impl McsCodecGloss for McsCodec {
     fn from_scene(scene: &Scene) -> Self {
         let mut smpl_bodies = Vec::new();
-        let mut camera_track_query = scene.world.query::<&CameraTrack>();
-        let camera_track = camera_track_query.iter().next().map(|c| c.1.clone());
+        let mut smpl_camera_query = scene.world.query::<(&ProjectionWithFov, &TransformSequence)>();
+        let smpl_camera = smpl_camera_query.iter().next().map(|(_, (projection, transform_sequence))| SmplCamera {
+            projection: projection.clone(),
+            transform_sequence: transform_sequence.clone(),
+        });
         let (num_frames, frame_rate) = if let Ok(scene_animation) = scene.get_resource::<&SceneAnimation>() {
             (scene_animation.num_frames, Some(scene_animation.config.fps))
         } else {
@@ -58,26 +67,30 @@ impl McsCodecGloss for McsCodec {
             "Created McsCodec from scene: Num frames - {}, Num bodies - {}, Camera present - {}",
             num_frames,
             smpl_bodies.len(),
-            camera_track.is_some()
+            smpl_camera.is_some()
         );
         Self {
             num_frames,
             frame_rate,
             smpl_bodies,
-            camera_track,
+            smpl_camera,
         }
     }
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_sign_loss)]
     fn to_entity_builders(&mut self, with_colors: bool) -> Vec<EntityBuilder> {
         let mut builders: Vec<EntityBuilder> = Vec::new();
-        if let Some(camera_track) = &self.camera_track {
-            let mut camera_builder = EntityBuilder::new();
-            camera_builder.add(Name("TrackedCamera".to_string()));
-            camera_builder.add(camera_track.clone());
+        if let Some(smpl_camera) = &self.smpl_camera {
+            let mut camera_builder = build_camera_frustum(smpl_camera.projection.aspect_ratio, smpl_camera.projection.fovy);
+            camera_builder.add(Name("McsCamera".to_string()));
+            camera_builder.add(smpl_camera.projection.clone());
+            camera_builder.add(smpl_camera.transform_sequence.clone());
             builders.push(camera_builder);
         }
-        let camera_num_frames = self.camera_track.as_ref().map(|camera_track| camera_track.num_frames().max(1));
+        let camera_num_frames = self
+            .smpl_camera
+            .as_ref()
+            .map(|smpl_camera| smpl_camera.transform_sequence.num_frames().max(1));
         for (i, smpl_body) in self.smpl_bodies.iter().enumerate() {
             let smpl_num_frames = smpl_body.codec.frame_count as usize;
             self.frame_rate = smpl_body.codec.frame_rate;
@@ -128,12 +141,21 @@ impl McsCodecGloss for McsCodec {
     fn insert_into_scene(&mut self, scene: &mut Scene, with_colors: bool) {
         let builders = self.to_entity_builders(with_colors);
         for mut builder in builders {
-            if !builder.has::<Betas>() {
-                builder.add(Betas::default());
-            }
-            let gloss_interop = GlossInterop::default();
             let name = builder.get::<&Name>().unwrap().0.clone();
-            scene.get_or_create_entity(&name).insert_builder(builder).insert(gloss_interop);
+            let is_smpl = builder.has::<SmplParams>();
+            let is_camera = builder.has::<ProjectionWithFov>();
+            if is_smpl {
+                if !builder.has::<Betas>() {
+                    builder.add(Betas::default());
+                }
+                let gloss_interop = GlossInterop::default();
+                scene.get_or_create_entity(&name).insert_builder(builder).insert(gloss_interop);
+            } else if is_camera {
+                let mut entity = scene.get_or_create_entity(&name);
+                entity.insert_builder(builder).remove::<Selectable>();
+                let camera_takeover = CameraTakeover::new(entity.entity());
+                scene.add_resource(camera_takeover);
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::scene::SceneAnimation;
 use gloss_img::dynamic_image::DynImage;
 use gloss_renderer::{
-    components::{DiffuseImg, Faces, MetalnessImg, Name, NormalImg, RoughnessImg, UVs, Verts},
+    components::{DiffuseImg, Faces, MetalnessImg, Name, NormalImg, ProjectionWithFov, RoughnessImg, UVs, Verts},
     scene::Scene,
 };
 use gloss_utils::{
@@ -19,9 +19,8 @@ use smpl_core::{
     common::{metadata::smpl_metadata, pose::Pose, smpl_params::SmplParams},
     conversions::pose_remap::PoseRemap,
 };
-use smpl_core::{codec::gltf::PropData, common::transform_sequence::TransformSequence};
 use smpl_core::{
-    codec::{gltf::PerBodyData, scene::CameraTrack},
+    codec::gltf::PerBodyData,
     common::{
         animation::Animation,
         betas::Betas,
@@ -32,6 +31,10 @@ use smpl_core::{
         smpl_options::SmplOptions,
         types::{FaceType, UpAxis},
     },
+};
+use smpl_core::{
+    codec::{gltf::PropData, scene::SmplCamera},
+    common::transform_sequence::TransformSequence,
 };
 use smpl_utils::array::{Gather2D, Gather3D};
 use std::f32::consts::PI;
@@ -102,10 +105,15 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
     let now = wasm_timer::Instant::now();
     let mut gltf_codec = GltfCodec::default();
     let mut nr_frames = 0;
-    if options.export_camera {
-        let mut cameras_query = scene.world.query::<&CameraTrack>();
-        for (_, camera_track) in cameras_query.iter() {
-            gltf_codec.camera_track = Some(camera_track.clone());
+    let mut camera_name = String::new();
+    let mut cameras_query = scene.world.query::<(&ProjectionWithFov, &TransformSequence, &Name)>();
+    if let Some((_, (projection, transform_sequence, name))) = cameras_query.iter().next() {
+        camera_name.clone_from(&name.0);
+        if options.export_camera {
+            gltf_codec.smpl_camera = Some(SmplCamera {
+                projection: projection.clone(),
+                transform_sequence: transform_sequence.clone(),
+            });
         }
     }
     let mut query = scene.world.query::<(&SmplParams, &Name)>();
@@ -417,7 +425,10 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
     let mut query_props = scene
         .world
         .query::<(&Verts, &Faces, &TransformSequence, Option<&UVs>, Option<&DiffuseImg>, &Name)>();
-    for (_entity, (verts, faces, transform_sequence, uv, diffuse_img, _name)) in query_props.iter() {
+    for (_entity, (verts, faces, transform_sequence, uv, diffuse_img, name)) in query_props.iter() {
+        if name.0 == camera_name {
+            continue;
+        }
         let scales_vec3 = transform_sequence.scales.iter().flat_map(|s| vec![*s, *s, *s]).collect::<Vec<f32>>();
         let scales_ndarray3 = nd::Array2::from_shape_vec((transform_sequence.num_frames(), 3), scales_vec3).unwrap();
         let prop_data = PropData {

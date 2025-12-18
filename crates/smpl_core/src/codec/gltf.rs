@@ -1,5 +1,5 @@
-use super::scene::CameraTrack;
 use crate::{
+    codec::scene::SmplCamera,
     common::types::{ChunkHeader, FaceType, GltfCompatibilityMode, GltfOutputType, SmplType},
     smpl_x::smpl_x,
 };
@@ -149,7 +149,7 @@ impl Default for GltfExportOptions {
     }
 }
 /// The ``GltfCodec`` contains all the contents of the exported GLTF
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct GltfCodec {
     pub num_bodies: usize,
     pub smpl_type: SmplType,
@@ -165,7 +165,7 @@ pub struct GltfCodec {
     pub num_pose_morph_targets: usize,
     pub num_expression_morph_targets: usize,
     pub per_body_data: Vec<PerBodyData>,
-    pub camera_track: Option<CameraTrack>,
+    pub smpl_camera: Option<SmplCamera>,
     pub props: Vec<PropData>,
 }
 impl Default for GltfCodec {
@@ -185,7 +185,7 @@ impl Default for GltfCodec {
             num_pose_morph_targets: 0,
             num_expression_morph_targets: 0,
             per_body_data: Vec::new(),
-            camera_track: None,
+            smpl_camera: None,
             props: Vec::new(),
         }
     }
@@ -301,15 +301,15 @@ impl GltfCodec {
             ..Default::default()
         };
         nodes.push(scene_root_node);
-        if let Some(camera_track) = &self.camera_track {
+        if let Some(smpl_camera) = &self.smpl_camera {
             let camera = gltf_json::camera::Camera {
                 name: Some("MoCapadeCamera".to_string()),
                 type_: gltf_json::validation::Checked::Valid(gltf_json::camera::Type::Perspective),
                 perspective: Some(gltf_json::camera::Perspective {
-                    yfov: camera_track.yfov,
-                    znear: camera_track.znear,
-                    zfar: camera_track.zfar,
-                    aspect_ratio: camera_track.aspect_ratio,
+                    yfov: smpl_camera.projection.fovy,
+                    znear: smpl_camera.projection.near,
+                    zfar: Some(smpl_camera.projection.far),
+                    aspect_ratio: Some(smpl_camera.projection.aspect_ratio),
                     extensions: None,
                     extras: Option::default(),
                 }),
@@ -318,7 +318,7 @@ impl GltfCodec {
                 extras: Option::default(),
             };
             cameras.push(camera);
-            let camera_track_node = Node {
+            let smpl_camera_node = Node {
                 name: Some("AnimatedCamera".to_string()),
                 camera: Some(gltf_json::Index::new(0)),
                 ..Default::default()
@@ -327,7 +327,7 @@ impl GltfCodec {
             if let Some(ref mut scene_root_node_children) = nodes[0].children {
                 scene_root_node_children.push(gltf_json::Index::new(camera_node_idx));
             }
-            nodes.push(camera_track_node);
+            nodes.push(smpl_camera_node);
         }
         let node_indices: Vec<gltf_json::Index<Node>> = vec![gltf_json::Index::new(scene_root_node_index)];
         let scene: gltf_json::Scene = gltf_json::Scene {
@@ -761,14 +761,12 @@ impl GltfCodec {
                 samplers.extend(animation_samplers);
             }
         }
-        if self.camera_track.is_some() {
-            let (cam_track_buffer_views, cam_track_buffer_data) = self
-                .create_camera_animation_buffer_views(&mut full_buffer_data.len(), compatibility_mode)
-                .unwrap();
-            let cam_track_accessors = self.create_camera_animation_accessors(buffer_views.len() as u32).unwrap();
-            let (cam_track_channels, cam_track_samplers) = self
-                .create_camera_animation_channels_and_samplers(accessors.len() as u32, 1, samplers.len() as u32)
-                .unwrap();
+        if self.smpl_camera.is_some() {
+            let (cam_track_buffer_views, cam_track_buffer_data) =
+                self.create_camera_animation_buffer_views(&mut full_buffer_data.len(), compatibility_mode);
+            let cam_track_accessors = self.create_camera_animation_accessors(buffer_views.len() as u32);
+            let (cam_track_channels, cam_track_samplers) =
+                self.create_camera_animation_channels_and_samplers(accessors.len() as u32, 1, samplers.len() as u32);
             buffer_views.extend(cam_track_buffer_views);
             full_buffer_data.extend(cam_track_buffer_data);
             accessors.extend(cam_track_accessors);
@@ -797,10 +795,10 @@ impl GltfCodec {
                 inverse_bind_matrices.extend(inverse_bind_matrix.t().iter());
             }
             let has_uv = prop.uvs.is_some();
-            println!("has uv: {has_uv}");
+            info!("has uv: {has_uv}");
             let vertex_data = if let Some(uvs) = prop.uvs.as_ref() {
-                println!("uv size: {:?}", uvs.shape());
-                println!("prop.positions size: {:?}", prop.positions.shape());
+                info!("uv size: {:?}", uvs.shape());
+                info!("prop.positions size: {:?}", prop.positions.shape());
                 let mut vertex_attributes_array: Vec<VertexPropWithUV> = vec![];
                 for (position, uv) in izip!(prop.positions.row_iter(), uvs.row_iter()) {
                     vertex_attributes_array.push(VertexPropWithUV {
@@ -2668,12 +2666,11 @@ impl GltfCodec {
         &self,
         running_offset: &mut usize,
         compatibility_mode: GltfCompatibilityMode,
-    ) -> Option<(Vec<gltf_json::buffer::View>, Vec<u8>)> {
-        let camera_track = self.camera_track.as_ref()?;
+    ) -> (Vec<gltf_json::buffer::View>, Vec<u8>) {
         let mut buffer_views = Vec::new();
         let mut buffer_data = Vec::new();
-        if let Some(translations) = camera_track.per_frame_translations.as_ref() {
-            let trans_data = to_padded_byte_vector(translations.as_slice().unwrap());
+        if let Some(smpl_camera) = &self.smpl_camera {
+            let trans_data = to_padded_byte_vector(smpl_camera.transform_sequence.translations.as_slice().unwrap());
             let trans_len = trans_data.len();
             let trans_view = gltf_json::buffer::View {
                 buffer: gltf_json::Index::new(0),
@@ -2688,8 +2685,7 @@ impl GltfCodec {
             buffer_data.extend(trans_data);
             *running_offset += trans_len;
             buffer_views.push(trans_view);
-        }
-        if let Some(rotations) = camera_track.per_frame_rotations.as_ref() {
+            let rotations = smpl_camera.transform_sequence.get_rotations_as_quaternions();
             let rotated_rots = if compatibility_mode == GltfCompatibilityMode::Unreal {
                 let angle = 90.0;
                 let axis = [0.0, 1.0, 0.0];
@@ -2713,14 +2709,14 @@ impl GltfCodec {
             *running_offset += rot_len;
             buffer_views.push(rot_view);
         }
-        Some((buffer_views, buffer_data))
+        (buffer_views, buffer_data)
     }
     /// Create camera animation accessors
-    fn create_camera_animation_accessors(&self, current_buffer_view_offset: u32) -> Option<Vec<gltf_json::Accessor>> {
-        let camera_track = self.camera_track.as_ref()?;
+    fn create_camera_animation_accessors(&self, current_buffer_view_offset: u32) -> Vec<gltf_json::Accessor> {
         let mut accessors = Vec::new();
         let mut current_view = current_buffer_view_offset;
-        if let Some(translations) = camera_track.per_frame_translations.as_ref() {
+        if let Some(smpl_camera) = &self.smpl_camera {
+            let translations = smpl_camera.transform_sequence.translations.clone();
             accessors.push(gltf_json::Accessor {
                 buffer_view: Some(gltf_json::Index::new(current_view)),
                 byte_offset: None,
@@ -2736,8 +2732,7 @@ impl GltfCodec {
                 extras: Option::default(),
             });
             current_view += 1;
-        }
-        if let Some(rotations) = camera_track.per_frame_rotations.as_ref() {
+            let rotations = smpl_camera.transform_sequence.get_rotations_as_quaternions();
             accessors.push(gltf_json::Accessor {
                 buffer_view: Some(gltf_json::Index::new(current_view)),
                 byte_offset: None,
@@ -2753,7 +2748,7 @@ impl GltfCodec {
                 extras: Option::default(),
             });
         }
-        Some(accessors)
+        accessors
     }
     /// Create camera animation channels and samplers
     #[allow(clippy::cast_possible_truncation)]
@@ -2762,13 +2757,12 @@ impl GltfCodec {
         current_accessor_offset: u32,
         camera_node_index: u32,
         sampler_start_idx: u32,
-    ) -> Option<(Vec<gltf_json::animation::Channel>, Vec<gltf_json::animation::Sampler>)> {
-        let camera_track = self.camera_track.as_ref()?;
+    ) -> (Vec<gltf_json::animation::Channel>, Vec<gltf_json::animation::Sampler>) {
         let mut channels = Vec::new();
         let mut samplers = Vec::new();
         let mut current_accessor = current_accessor_offset;
         let times_accessor_index = 7;
-        if camera_track.per_frame_translations.is_some() {
+        if self.smpl_camera.is_some() {
             samplers.push(gltf_json::animation::Sampler {
                 input: gltf_json::Index::new(times_accessor_index),
                 interpolation: Valid(gltf_json::animation::Interpolation::Linear),
@@ -2788,8 +2782,6 @@ impl GltfCodec {
                 extras: Option::default(),
             });
             current_accessor += 1;
-        }
-        if camera_track.per_frame_rotations.is_some() {
             samplers.push(gltf_json::animation::Sampler {
                 input: gltf_json::Index::new(times_accessor_index),
                 interpolation: Valid(gltf_json::animation::Interpolation::Linear),
@@ -2809,29 +2801,28 @@ impl GltfCodec {
                 extras: Option::default(),
             });
         }
-        Some((channels, samplers))
+        (channels, samplers)
     }
     fn num_morph_targets(&self) -> usize {
         self.morph_targets.as_ref().map_or(0, |x| x.shape()[0])
     }
     /// Rotate camera rotation quaternions by a given angle and axis
     fn rotate_camera_quaternions(&self, angle_degrees: f32, axis: [f32; 3]) -> Option<nd::Array2<f32>> {
-        if let Some(camera_track) = &self.camera_track {
-            if let Some(rotations) = &camera_track.per_frame_rotations {
-                let mut rotated_quaternions = rotations.clone();
-                let axis_vec = na::Vector3::new(axis[0], axis[1], axis[2]);
-                let rotation_quat = na::UnitQuaternion::from_axis_angle(&na::UnitVector3::new_normalize(axis_vec), angle_degrees.to_radians());
-                for mut row in rotated_quaternions.axis_iter_mut(nd::Axis(0)) {
-                    let q = na::Quaternion::new(row[3], row[0], row[1], row[2]);
-                    let unit_q = na::UnitQuaternion::from_quaternion(q);
-                    let result = rotation_quat * unit_q;
-                    row[0] = result.i;
-                    row[1] = result.j;
-                    row[2] = result.k;
-                    row[3] = result.w;
-                }
-                return Some(rotated_quaternions);
+        if let Some(smpl_camera) = &self.smpl_camera {
+            let rotations = smpl_camera.transform_sequence.get_rotations_as_quaternions();
+            let mut rotated_quaternions = rotations.clone();
+            let axis_vec = na::Vector3::new(axis[0], axis[1], axis[2]);
+            let rotation_quat = na::UnitQuaternion::from_axis_angle(&na::UnitVector3::new_normalize(axis_vec), angle_degrees.to_radians());
+            for mut row in rotated_quaternions.axis_iter_mut(nd::Axis(0)) {
+                let q = na::Quaternion::new(row[3], row[0], row[1], row[2]);
+                let unit_q = na::UnitQuaternion::from_quaternion(q);
+                let result = rotation_quat * unit_q;
+                row[0] = result.i;
+                row[1] = result.j;
+                row[2] = result.k;
+                row[3] = result.w;
             }
+            return Some(rotated_quaternions);
         }
         None
     }

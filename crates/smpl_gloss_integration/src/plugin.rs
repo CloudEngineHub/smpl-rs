@@ -1,4 +1,8 @@
-use crate::systems::prop_transform_sequence;
+use crate::systems::apply_transform_sequence;
+#[cfg(feature = "with-gui")]
+use crate::systems::camera_gui;
+use crate::systems::reset_camera_takeover;
+use crate::systems::set_camera_takeover;
 #[cfg(feature = "with-gui")]
 use crate::systems::smpl_anim_scroll_gui;
 use crate::systems::smpl_auto_add_follow;
@@ -69,7 +73,9 @@ impl Plugin for SmplPlugin {
             LogicSystem::new(smpl_to_gloss_mesh).with_name("smpl_to_gloss_mesh"),
             LogicSystem::new(smpl_follow_anim).with_name("smpl_follow_anim"),
             LogicSystem::new(hide_floor_when_viewed_from_below).with_name("hide_floor_when_viewed_from_below"),
-            LogicSystem::new(prop_transform_sequence).with_name("prop_transform_sequence"),
+            LogicSystem::new(apply_transform_sequence).with_name("apply_transform_sequence"),
+            LogicSystem::new(set_camera_takeover).with_name("set_camera_takeover"),
+            LogicSystem::new(reset_camera_takeover).with_name("reset_camera_takeover"),
         ];
         vec.append(&mut rest);
         vec
@@ -84,7 +90,8 @@ impl Plugin for SmplPlugin {
             .push(GuiSystem::new(smpl_vertex_offset_gui)); vec
             .push(GuiSystem::new(smpl_anim_scroll_gui)); vec
             .push(GuiSystem::new(smpl_hand_pose_gui)); vec
-            .push(GuiSystem::new(smpl_interop_gui)); } else {}
+            .push(GuiSystem::new(smpl_interop_gui)); vec
+            .push(GuiSystem::new(camera_gui)); } else {}
         }
         vec
     }
