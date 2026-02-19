@@ -1,5 +1,6 @@
 pub mod animation;
 pub mod betas;
+pub mod burn_tensor;
 pub mod codec;
 pub mod entity_builder;
 pub mod expression;
@@ -19,3 +20,4 @@ pub mod smpl_options;
 pub mod smpl_params;
 pub mod transform_sequence;
 pub mod types;
+pub mod vertex_offsets;

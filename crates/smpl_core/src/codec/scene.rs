@@ -141,7 +141,7 @@ impl McsCodec {
                         far: zfar,
                         aspect_ratio,
                     },
-                    transform_sequence: TransformSequence::new_from_rot_trans(&static_rotation, &static_translation),
+                    transform_sequence: TransformSequence::new_from_quat_rot_trans(&static_rotation, &static_translation),
                 });
             }
             let mut per_frame_translations: Option<nd::Array2<f32>> = None;
@@ -197,7 +197,7 @@ impl McsCodec {
                     far: zfar,
                     aspect_ratio,
                 },
-                transform_sequence: TransformSequence::new_from_rot_trans(
+                transform_sequence: TransformSequence::new_from_quat_rot_trans(
                     &per_frame_rotations.unwrap_or(nd::array![[0.0, 0.0, 0.0, 1.0]]),
                     &per_frame_translations.unwrap_or(nd::Array2::<f32>::zeros((1, 3))),
                 ),

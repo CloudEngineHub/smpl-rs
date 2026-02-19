@@ -32,7 +32,7 @@ fn main() {
     let entity = viewer.scene_mut().get_or_create_entity("mesh_smpl").entity();
     viewer
         .scene_mut()
-        .world
+        .world_mut()
         .insert(
             entity,
             (

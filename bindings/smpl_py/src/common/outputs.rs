@@ -1,3 +1,5 @@
+use crate::common::burn_tensor::BurnTensorType;
+use crate::common::burn_tensor::PyBurnTensor;
 use gloss_burn_multibackend::backend::MultiDevice;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
@@ -46,24 +48,34 @@ pub struct PySmplOutput {
 #[pymethods]
 impl PySmplOutput {
     #[getter]
-    pub fn verts(&mut self, py: Python<'_>) -> Py<PyArray2<f32>> {
-        self.inner.verts.to_ndarray().to_pyarray_bound(py).into()
+    pub fn verts(&mut self) -> PyBurnTensor {
+        PyBurnTensor {
+            inner: BurnTensorType::FloatDim2(self.inner.verts.clone()),
+        }
     }
     #[getter]
-    pub fn faces(&mut self, py: Python<'_>) -> Py<PyArray2<u32>> {
-        self.inner.faces.to_ndarray().to_pyarray_bound(py).into()
+    pub fn faces(&mut self) -> PyBurnTensor {
+        PyBurnTensor {
+            inner: BurnTensorType::IntDim2(self.inner.faces.clone()),
+        }
     }
     #[getter]
-    pub fn uvs(&mut self, py: Python<'_>) -> Option<Py<PyArray2<f32>>> {
-        self.inner.uvs.as_ref().map(|x| x.to_ndarray().to_pyarray_bound(py).into())
+    pub fn uvs(&mut self) -> Option<PyBurnTensor> {
+        self.inner.uvs.as_ref().map(|x| PyBurnTensor {
+            inner: BurnTensorType::FloatDim2(x.clone()),
+        })
     }
     #[getter]
-    pub fn normals(&mut self, py: Python<'_>) -> Option<Py<PyArray2<f32>>> {
-        self.inner.normals.as_ref().map(|x| x.to_ndarray().to_pyarray_bound(py).into())
+    pub fn normals(&mut self) -> Option<PyBurnTensor> {
+        self.inner.normals.as_ref().map(|x| PyBurnTensor {
+            inner: BurnTensorType::FloatDim2(x.clone()),
+        })
     }
     #[getter]
-    pub fn joints(&mut self, py: Python<'_>) -> Py<PyArray2<f32>> {
-        self.inner.joints.to_ndarray().to_pyarray_bound(py).into()
+    pub fn joints(&mut self) -> PyBurnTensor {
+        PyBurnTensor {
+            inner: BurnTensorType::FloatDim2(self.inner.joints.clone()),
+        }
     }
     #[pyo3(text_signature = "($self) -> None")]
     pub fn compute_normals(&mut self) {

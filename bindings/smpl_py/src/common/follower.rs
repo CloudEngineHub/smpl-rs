@@ -4,7 +4,7 @@ use gloss_renderer::scene::Scene;
 use pyo3::prelude::*;
 use smpl_gloss_integration::components::{Follow, FollowParams, Follower, FollowerType};
 use smpl_utils::convert_enum_from;
-#[pyclass(name = "FollowerType", module = "smpl_rs.types", unsendable, eq, eq_int)]
+#[pyclass(name = "FollowerType", module = "smpl_rs.types", unsendable)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum PyFollowerType {
     Cam = 0,

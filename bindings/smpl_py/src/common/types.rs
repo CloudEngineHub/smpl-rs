@@ -1,14 +1,14 @@
 use pyo3::prelude::*;
 use smpl_core::common::types::{AngleType, FaceType, Gender, GltfCompatibilityMode, SmplType, UpAxis};
 use smpl_utils::{convert_enum_from, convert_enum_into};
-#[pyclass(name = "UpAxis", module = "smpl_rs.types", unsendable, eq, eq_int)]
+#[pyclass(name = "UpAxis", module = "smpl_rs.types", unsendable)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PyUpAxis {
     Y = 0,
     Z,
 }
 convert_enum_from!(PyUpAxis, UpAxis, Y, Z,);
-#[pyclass(name = "Gender", module = "smpl_rs.types", unsendable, eq, eq_int)]
+#[pyclass(name = "Gender", module = "smpl_rs.types", unsendable)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PyGender {
     Neutral = 0,
@@ -17,7 +17,7 @@ pub enum PyGender {
 }
 convert_enum_from!(PyGender, Gender, Neutral, Male, Female,);
 convert_enum_into!(Gender, PyGender, Neutral, Male, Female,);
-#[pyclass(name = "SmplType", module = "smpl_rs.types", unsendable, eq, eq_int)]
+#[pyclass(name = "SmplType", module = "smpl_rs.types", unsendable)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PySmplType {
     Smpl = 0,
@@ -25,17 +25,20 @@ pub enum PySmplType {
     SmplX,
     Supr,
     SmplPP,
+    Skel,
+    Smil,
+    SmplXS,
 }
-convert_enum_from!(PySmplType, SmplType, Smpl, SmplH, SmplX, Supr, SmplPP,);
-convert_enum_into!(SmplType, PySmplType, Smpl, SmplH, SmplX, Supr, SmplPP,);
-#[pyclass(name = "AngleType", module = "smpl_rs.types", unsendable, eq, eq_int)]
+convert_enum_from!(PySmplType, SmplType, Smpl, SmplH, SmplX, Supr, SmplPP, Skel, Smil, SmplXS,);
+convert_enum_into!(SmplType, PySmplType, Smpl, SmplH, SmplX, Supr, SmplPP, Skel, Smil, SmplXS,);
+#[pyclass(name = "AngleType", module = "smpl_rs.types", unsendable)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum PyAngleType {
     AxisAngle = 0,
     Euler,
 }
 convert_enum_from!(PyAngleType, AngleType, AxisAngle, Euler,);
-#[pyclass(name = "GltfCompatibilityMode", module = "smpl_rs.types", unsendable, eq, eq_int)]
+#[pyclass(name = "GltfCompatibilityMode", module = "smpl_rs.types", unsendable)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PyGltfCompatibilityMode {
     Smpl = 0,
@@ -43,7 +46,7 @@ pub enum PyGltfCompatibilityMode {
 }
 convert_enum_from!(PyGltfCompatibilityMode, GltfCompatibilityMode, Smpl, Unreal,);
 convert_enum_into!(GltfCompatibilityMode, PyGltfCompatibilityMode, Smpl, Unreal,);
-#[pyclass(name = "FaceType", module = "smpl_rs.types", unsendable, eq, eq_int)]
+#[pyclass(name = "FaceType", module = "smpl_rs.types", unsendable)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PyFaceType {
     SmplX = 0,

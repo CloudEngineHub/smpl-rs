@@ -14,7 +14,7 @@ use smpl_core::common::{
 };
 use smpl_utils::convert_enum_from;
 use std::time::Duration;
-#[pyclass(name = "AnimWrap", module = "smpl_rs.types", unsendable, eq, eq_int)]
+#[pyclass(name = "AnimWrap", module = "smpl_rs.types", unsendable)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum PyAnimWrap {
     Clamp = 0,
@@ -77,7 +77,7 @@ impl PyAnimation {
         let per_frame_joint_poses: nd::Array2<f32> = per_frame_joint_poses.to_owned_array();
         let nr_frames = per_frame_joint_poses.dim().0;
         let joints_3 = per_frame_joint_poses.dim().1;
-        let mut per_frame_joint_poses = per_frame_joint_poses.clone().into_shape_with_order((nr_frames, joints_3 / 3, 3)).unwrap();
+        let mut per_frame_joint_poses = per_frame_joint_poses.clone().into_shape((nr_frames, joints_3 / 3, 3)).unwrap();
 
         let per_frame_global_trans: nd::Array2<f32> = per_frame_global_trans.to_owned_array();
         let per_frame_expression_coeffs = per_expression_coeffs.map(|x| x.to_owned_array());

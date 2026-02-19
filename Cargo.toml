@@ -11,7 +11,7 @@ members = [
 authors = ["Radu Alexandru Rosu <alex@meshcapade.com>", "Aman Shenoy <aman@meshcapade.com>"]
 edition = "2021"
 rust-version = "1.85"
-version = "0.8.0"
+version = "0.9.0"
 description = "A suite of SMPL functionality written over gloss"
 license = "MIT"
 repository = "https://github.com/Meshcapade/smpl-rs"
@@ -21,33 +21,35 @@ keywords = ["3d", "graphics", "animation", "smpl", "smplx"]
 # =====================================================================
 [workspace.dependencies]
 # my crates
-smpl-core = { path = "crates/smpl_core", version = "0.8", default-features = false }
-smpl-gloss-integration = { path = "crates/smpl_gloss_integration", version = "0.8", default-features = false }
-smpl-utils = { path = "crates/smpl_utils", version = "0.8", default-features = false }
+smpl-core = { path = "crates/smpl_core", version = "0.9", default-features = false }
+smpl-gloss-integration = { path = "crates/smpl_gloss_integration", version = "0.9", default-features = false }
+smpl-utils = { path = "crates/smpl_utils", version = "0.9", default-features = false }
 
 ## When pushing smpl-rs crates to crates.io
-# easy-wgpu = {version = "0.8", default-features = false}
-# gloss_py_macros = {  git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-# gloss-renderer = {version = "0.8", default-features = false}
-# gloss-utils = {version = "0.8", default-features = false}
-# gloss-img = {version = "0.8", default-features = false}
-# gloss-hecs = {version = "0.8", default-features = false}
-# gloss-geometry = {version = "0.8", default-features = false}
-# gloss-burn-multibackend = {version = "0.8", default-features = false}
-# wgpu-burn-interop = {version = "0.8", default-features = false}
-# wgpu-burn-global-device = {version = "0.8", default-features = false}
+easy-wgpu = {version = "0.9", default-features = false}
+gloss_py_macros = {version = "0.9", default-features = false}
+gloss-renderer = {version = "0.9", default-features = false}
+gloss-utils = {version = "0.9", default-features = false}
+gloss-img = {version = "0.9", default-features = false}
+gloss-hecs = {version = "0.9", default-features = false}
+gloss-geometry = {version = "0.9", default-features = false}
+gloss-burn-multibackend = {version = "0.9", default-features = false}
+wgpu-burn-interop = {version = "0.9", default-features = false}
+wgpu-burn-global-device = {version = "0.9", default-features = false}
+wgpu-cuda-interop = {version = "0.9", default-features = false}
 
 ## When pushing only to GitHub, so that we dont need to keep publishing minor versions
-easy-wgpu = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss_py_macros = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-renderer = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-utils = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-img = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-hecs = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-geometry = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-gloss-burn-multibackend = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-wgpu-burn-interop = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
-wgpu-burn-global-device = {git = "ssh://git@github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# easy-wgpu = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# gloss_py_macros = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# gloss-renderer = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# gloss-utils = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# gloss-img = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# gloss-hecs = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# gloss-geometry = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# gloss-burn-multibackend = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# wgpu-burn-interop = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# wgpu-burn-global-device = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
+# wgpu-cuda-interop = {git = "https://github.com/Meshcapade/gloss.git", branch = "main", default-features = false}
 
 # =====================================================================
 # Third-party crates
@@ -57,8 +59,8 @@ cfg-if = "1"
 image = { version= "0.25", default-features = false, features=["jpeg", "png", "tiff"] } #TODO maybe replace it with zune-image
 egui = {version = "0.32", default-features = false, features= ["default_fonts"]}
 nalgebra = {version = "0.32", default-features = false, features = ["serde-serialize-no-std"]}
-ndarray-npy = { version = "0.9", default-features = false, features = []}
-ndarray = { version = "0.16"  }
+ndarray-npy = { version = "0.8", default-features = false, features = []}
+ndarray = { version = "0.15"  }
 pollster = "0.3"
 wasm-timer = "0.2"
 rangetools = "0.1"
@@ -81,6 +83,8 @@ dyn-clone ="1.0"
 burn = {version = "0.18", default-features = false, features=["ndarray", "wgpu", "candle", "autotune"]}
 burn-ndarray = {version = "0.18", default-features = false}
 burn-import ={ version = "0.18", default-features = false, features=["onnx"]} 
+tch = "0.19" #TODO put this only as dependency when burn uses the torch backend
+burn-tch = { version = "0.18", default-features = false } #TODO make it a dependency only when burn uses torch
 wgpu       = { version = "25.0", default-features = false,  features = ["wgsl", "spirv"] } 
 bytemuck = { version = "1.12", features = [ "derive" ] }
 #egui and half" pull different versions of the getrandom crate transitivelly. And I want to enable the js feature for both:
@@ -93,6 +97,9 @@ bytemuck_derive = "1.8"
 crossbeam-channel = "0.5"
 clap = {version = "4.5", features = ["derive"]}
 divan = "0.1"
+#network
+bincode={ version = "2.0", features = ["serde"] }
+erased-serde = "0.4"
 
 # =====================================================================
 # Dependencies for wasm https://sotrh.github.io/learn-wgpu/beginner/tutorial1-window/#added-support-for-the-web

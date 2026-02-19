@@ -23,7 +23,7 @@ gloss-utils.workspace=true
 
 # Burn dependencies for neural network functionality
 burn.workspace=true
-burn-ndarray.workspace=true
+# burn-ndarray.workspace=true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace=true

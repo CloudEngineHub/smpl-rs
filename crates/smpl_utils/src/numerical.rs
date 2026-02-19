@@ -48,7 +48,7 @@ pub fn interpolate_angle_tensor<B: Backend>(cur_angle: Tensor<B, 1>, other_angle
 }
 pub fn axis_angle_to_quaternion<B: Backend>(axis_angle: Tensor<B, 2>) -> Tensor<B, 2> {
     let eps = 1e-6f32;
-    let angle: Tensor<B, 1> = axis_angle.clone().powf_scalar(2.0).sum_dim(1).squeeze_dims(&[1]).sqrt();
+    let angle: Tensor<B, 1> = axis_angle.clone().powf_scalar(2.0).sum_dim(1).squeeze_dims(&[1]).clamp_min(1e-8).sqrt();
     let denom = angle.clone().unsqueeze_dim(1) + eps;
     let axis = axis_angle / denom;
     let half_angle = angle * 0.5;
@@ -63,7 +63,7 @@ pub fn quaternion_to_axis_angle<B: Backend>(quat: Tensor<B, 2>) -> Tensor<B, 2> 
     let nr_rows = quat.dims()[0];
     let qxyz = quat.clone().slice([0..nr_rows, 0..3]);
     let qw = quat.slice([0..nr_rows, 3..4]).squeeze(1);
-    let vec_norm = qxyz.clone().powf_scalar(2.0).sum_dim(1).sqrt().squeeze_dims(&[1]);
+    let vec_norm = qxyz.clone().powf_scalar(2.0).sum_dim(1).clamp_min(1e-8).sqrt().squeeze_dims(&[1]);
     let abs_qw = qw.abs();
     let safe_qw = abs_qw.clone() + eps;
     let half_angle_tan = vec_norm.clone() / safe_qw;
@@ -85,21 +85,26 @@ pub fn quaternion_to_axis_angle_fast<B: Backend>(quat: Tensor<B, 2>) -> Tensor<B
     let eps = 1e-6f32;
     let nr_rows = quat.dims()[0];
     let qxyz = quat.clone().slice([0..nr_rows, 0..3]);
-    let qw = quat.slice([0..nr_rows, 3..4]).squeeze(1);
-    let one_minus_w: Tensor<B, 1> = 1.0 - qw.clone();
+    let qw: Tensor<B, 1> = quat.slice([0..nr_rows, 3..4]).squeeze(1);
+    let w_negative_mask = qw.clone().lower_elem(0.0);
+    let qw: Tensor<B, 1> = w_negative_mask.clone().float() * (-qw.clone()) + (1.0 - w_negative_mask.clone().float()) * qw.clone();
+    let qxyz = w_negative_mask.clone().float().unsqueeze_dim(1) * (-qxyz.clone()) + (1.0 - w_negative_mask.float().unsqueeze_dim(1)) * qxyz.clone();
+    let clamped_w = qw.clone().clamp(0.0, 1.0);
+    let one_minus_w: Tensor<B, 1> = 1.0 - clamped_w.clone();
     let sqrt_term = one_minus_w.sqrt();
-    let acos_w = sqrt_term * (1.570_728_8 + qw.clone() * (-0.212_114_4 + qw.clone() * (0.074_261_0 + qw.clone() * -0.018_729_3)));
+    let acos_w =
+        sqrt_term * (1.570_728_8 + clamped_w.clone() * (-0.212_114_4 + clamped_w.clone() * (0.074_261_0 + clamped_w.clone() * -0.018_729_3)));
     let angle: Tensor<B, 1> = 2.0 * acos_w;
-    let one_min_square: Tensor<B, 1> = 1.0 - qw.clone() * qw.clone();
-    let sin_half_angle: Tensor<B, 1> = one_min_square.sqrt();
+    let one_minus_square: Tensor<B, 1> = 1.0 - clamped_w.clone() * clamped_w;
+    let sin_half_angle: Tensor<B, 1> = one_minus_square.sqrt();
     let denom = sin_half_angle + eps;
     let axis = qxyz / denom.unsqueeze_dim(1);
     axis * angle.unsqueeze_dim(1)
 }
 pub fn quaternion_interpolate_slerp<B: Backend>(lhs: Tensor<B, 2>, other: Tensor<B, 2>, other_weight: f32) -> Tensor<B, 2> {
     let eps = 1e-6f32;
-    let lhs_norm = lhs.clone().powf_scalar(2.0).sum_dim(1).sqrt() + eps;
-    let other_norm = other.clone().powf_scalar(2.0).sum_dim(1).sqrt() + eps;
+    let lhs_norm = lhs.clone().powf_scalar(2.0).sum_dim(1).clamp_min(1e-8).sqrt() + eps;
+    let other_norm = other.clone().powf_scalar(2.0).sum_dim(1).clamp_min(1e-8).sqrt() + eps;
     let lhs_normalized = lhs / lhs_norm;
     let other_normalized = other / other_norm;
     let dot: Tensor<B, 1> = (lhs_normalized.clone() * other_normalized.clone()).sum_dim(1).squeeze_dims(&[1]);
@@ -112,10 +117,10 @@ pub fn quaternion_interpolate_slerp<B: Backend>(lhs: Tensor<B, 2>, other: Tensor
     let close_threshold = 0.9995f32;
     let very_close_mask = corrected_dot.clone().greater_elem(close_threshold);
     let lerp_result = lhs_normalized.clone() * (1.0 - other_weight) + sign_corrected_other.clone() * other_weight;
-    let lerp_norm = lerp_result.clone().powf_scalar(2.0).sum_dim(1).sqrt() + eps;
+    let lerp_norm = lerp_result.clone().powf_scalar(2.0).sum_dim(1).clamp_min(1e-8).sqrt() + eps;
     let lerp_normalized = lerp_result / lerp_norm;
     let one_minus_dot_sq: Tensor<B, 1> = 1.0 - corrected_dot.clone().powf_scalar(2.0);
-    let sqrt_term = one_minus_dot_sq.sqrt();
+    let sqrt_term = one_minus_dot_sq.clamp_min(1e-8).sqrt();
     let safe_dot = corrected_dot.clone() + eps;
     let ratio = sqrt_term / safe_dot;
     let theta_approx: Tensor<B, 1> = ratio.clone() / (1.0 + 0.28 * ratio.clone().powf_scalar(2.0));
@@ -136,7 +141,7 @@ pub fn quaternion_interpolate_lerp<B: Backend>(lhs: Tensor<B, 2>, other: Tensor<
     let sign_corrected_other = negative_dot_mask_float.clone().unsqueeze_dim(1) * (-other.clone()) + positive_dot_mask_float.unsqueeze_dim(1) * other;
     let lerp_result = lhs * (1.0 - other_weight) + sign_corrected_other * other_weight;
     let lerp_norm_sq = lerp_result.clone().powf_scalar(2.0).sum_dim(1);
-    lerp_result / (lerp_norm_sq.sqrt() + eps)
+    lerp_result / (lerp_norm_sq.clamp_min(1e-8).sqrt() + eps)
 }
 pub fn map(value: f32, in_min: f32, in_max: f32, out_min: f32, out_max: f32) -> f32 {
     let value_clamped = clamp(value, in_min, in_max);
@@ -164,7 +169,7 @@ pub fn batch_rodrigues(full_pose: &nd::Array2<f32>) -> nd::Array3<f32> {
 #[allow(clippy::let_and_return)]
 pub fn batch_rodrigues_burn<B: Backend>(full_pose: &Tensor<B, 2, Float>) -> Tensor<B, 3, Float> {
     let eps = Tensor::<B, 1, Float>::from_floats([1e-6], &full_pose.device());
-    let angle = full_pose.clone().powf_scalar(2.0).sum_dim(1).sqrt();
+    let angle = full_pose.clone().powf_scalar(2.0).sum_dim(1).clamp_min(1e-8).sqrt();
     let denom = angle.clone() + eps.unsqueeze_dim(0);
     let k = full_pose.clone() / denom;
     let kx: Tensor<B, 1> = k.clone().slice_dim(1, 0..1).squeeze(1);
@@ -200,7 +205,7 @@ pub fn batch_rodrigues_burn<B: Backend>(full_pose: &Tensor<B, 2, Float>) -> Tens
 #[allow(clippy::let_and_return)]
 pub fn batch_rodrigues_burn_2<B: Backend>(full_pose: &Tensor<B, 2, Float>) -> Tensor<B, 3, Float> {
     let eps = Tensor::<B, 1, Float>::from_floats([1e-6], &full_pose.device());
-    let angle = full_pose.clone().powf_scalar(2.0).sum_dim(1).sqrt().squeeze(1);
+    let angle = full_pose.clone().powf_scalar(2.0).sum_dim(1).clamp_min(1e-8).sqrt().squeeze(1);
     let denom = angle.clone().unsqueeze_dim(1) + eps.unsqueeze_dim(0);
     let k = full_pose.clone() / denom;
     let kx: Tensor<B, 1> = k.clone().slice_dim(1, 0..1).squeeze(1);
@@ -232,7 +237,7 @@ pub fn batch_rodrigues_burn_2<B: Backend>(full_pose: &Tensor<B, 2, Float>) -> Te
 #[allow(clippy::let_and_return)]
 pub fn batch_rodrigues_burn_3<B: Backend>(full_pose: &Tensor<B, 2, Float>) -> Tensor<B, 3, Float> {
     let device = full_pose.device();
-    let angle: Tensor<B, 1> = full_pose.clone().powi_scalar(2).sum_dim(1).sqrt().squeeze(1);
+    let angle: Tensor<B, 1> = full_pose.clone().powi_scalar(2).sum_dim(1).clamp_min(1e-8).sqrt().squeeze(1);
     let denom = angle.clone().unsqueeze_dim(1) + 1e-6;
     let k = full_pose.clone() / denom;
     let k_3_1 = k.clone().unsqueeze_dim(2);
@@ -324,7 +329,7 @@ pub fn batch_rigid_transform(
         transforms_mat.slice_mut(s![idx, 3, 0..4]).assign(&array![0.0, 0.0, 0.0, 1.0]);
     }
     let mut transform_chain = Vec::new();
-    transform_chain.push(transforms_mat.slice(s![0, 0..4, 0..4]).to_owned().into_shape_with_order((4, 4)).unwrap());
+    transform_chain.push(transforms_mat.slice(s![0, 0..4, 0..4]).to_owned().into_shape((4, 4)).unwrap());
     for i in 1..=num_joints {
         let mat_1 = &transform_chain[parent_idx_per_joint[[i]] as usize];
         let mat_2 = transforms_mat.slice(s![i, 0..4, 0..4]);
@@ -398,12 +403,12 @@ pub fn batch_rigid_transform_burn<B: Backend>(
 ///   instead of doing a sequential loop over the 55 joints to accumulate the transforms, we do log J iterations.
 ///   Assume the tree is like
 ///   root (0)
-///     |
-///     1
-///     |
-///     2
-///     |
-///     3
+///   |
+///   1
+///   |
+///   2
+///   |
+///   3
 ///   On the first iteration, each joint knows about its local transform
 ///   chain[0] = L[0]    (root, special case)
 ///   chain[1] = L[1]
@@ -411,21 +416,22 @@ pub fn batch_rigid_transform_burn<B: Backend>(
 ///   chain[3] = L[3]
 ///   Then we accumulate the transform to the parent
 ///   chain[j] = chain[parent[j]] · chain[j]
-///   root (0)          chain[0] = L[0]
-///     1               chain[1] = L[0]·L[1]
-///     2               chain[2] = L[1]·L[2]
-///     3               chain[3] = L[2]·L[3]
+///   root (0)        chain[0] = L[0]
+///   1               chain[1] = L[0]·L[1]
+///   2               chain[2] = L[1]·L[2]
+///   3               chain[3] = L[2]·L[3]
 ///   Then we accumulate the transform to the grandparent
 ///   chain[j] = chain[parent^2[j]] · chain[j]
-///   root (0)          chain[0] = L[0]
-///     1               chain[1] = L[0]·L[1]
-///     2               chain[2] = L[0]·L[1]·L[2]
-///     3               chain[3] = L[0]·L[1]·L[2]·L[3]
+///   root (0)        chain[0] = L[0]
+///   1               chain[1] = L[0]·L[1]
+///   2               chain[2] = L[0]·L[1]·L[2]
+///   3               chain[3] = L[0]·L[1]·L[2]·L[3]
 pub fn batch_rigid_transform_burn_fast<B: Backend>(
     mut parent_idx_per_joint_t: Tensor<B, 1, Int>,
     _parent_idx_per_joint: &nd::Array1<u32>,
     rot_mats: Tensor<B, 3>,
     joints: Tensor<B, 2>,
+    kinematic_tree_depth: usize,
 ) -> (Tensor<B, 2>, Tensor<B, 3>) {
     let num_joints = joints.dims()[0];
     parent_idx_per_joint_t = parent_idx_per_joint_t.clone().slice_fill(0..1, 0);
@@ -447,7 +453,7 @@ pub fn batch_rigid_transform_burn_fast<B: Backend>(
     let max_steps = if num_joints <= 1 {
         0usize
     } else {
-        (num_joints as f32).log2().ceil() as usize
+        (kinematic_tree_depth as f32).log2().ceil() as usize
     };
     for _ in 0..max_steps {
         let parent_transforms = transform_chain.clone().select(0, parent_pow.clone());
@@ -482,4 +488,22 @@ pub fn extract_extrinsics_from_rot_trans(translations: &ndarray::Array2<f32>, ro
         extrinsics.slice_mut(s![frame, .., ..]).assign(&matrix_4x4.ref_ndarray2());
     }
     extrinsics
+}
+pub fn compute_tree_depth(parent_idx_per_joint: &nd::Array1<u32>) -> usize {
+    let mut max_depth = 0;
+    for i in 0..parent_idx_per_joint.len() {
+        let mut depth = 0;
+        let mut current_idx = i;
+        loop {
+            let parent = parent_idx_per_joint[current_idx];
+            if parent == 0 || parent >= u32::try_from(parent_idx_per_joint.len()).unwrap() {
+                depth += 1;
+                break;
+            }
+            depth += 1;
+            current_idx = parent as usize;
+        }
+        max_depth = max_depth.max(depth);
+    }
+    max_depth
 }

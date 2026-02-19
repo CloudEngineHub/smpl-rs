@@ -1,4 +1,4 @@
-use crate::AppBackend;
+use crate::{common::vertex_offsets::VertexOffsetsG, AppBackend};
 use crate::{
     common::{
         betas::BetasG,
@@ -68,6 +68,7 @@ pub struct SmplXGPUG<B: Backend> {
     pub lbs_weights_split_nd: nd::ArcArray2<f32>,
     pub vertex_face_csr: VertexFaceCSRBurn<B>,
     pub vertex_face_uv_csr: VertexFaceCSRBurn<B>,
+    pub kinematic_tree_depth: usize,
 }
 impl<B: Backend> SmplXGPUG<B> {
     /// # Panics
@@ -98,20 +99,20 @@ impl<B: Backend> SmplXGPUG<B> {
         let shape_dirs = shape_dirs
             .slice_axis(Axis(2), ndarray::Slice::from(0..actual_num_betas))
             .to_owned()
-            .into_shape_with_order((NUM_VERTS * 3, actual_num_betas))
+            .into_shape((NUM_VERTS * 3, actual_num_betas))
             .unwrap();
         let b_shape_dirs = shape_dirs.to_burn(&device);
         let b_expression_dirs = expression_dirs.map(|expression_dirs| {
             let actual_num_expression_components = max_num_expression_components.min(expression_dirs.shape()[2]);
             let expression_dirs = expression_dirs
                 .slice_axis(nd::Axis(2), nd::Slice::from(0..actual_num_expression_components))
-                .into_shape_with_order((NUM_VERTS * 3, actual_num_expression_components))
+                .into_shape((NUM_VERTS * 3, actual_num_expression_components))
                 .unwrap()
                 .to_owned();
             expression_dirs.to_burn(&device)
         });
         let b_pose_dirs = pose_dirs.map(|pose_dirs| {
-            let pose_dirs = pose_dirs.into_shape_with_order((NUM_VERTS * 3, NUM_JOINTS * 9)).unwrap();
+            let pose_dirs = pose_dirs.into_shape((NUM_VERTS * 3, NUM_JOINTS * 9)).unwrap();
             pose_dirs.to_burn(&device)
         });
         let b_joint_regressor = joint_regressor.to_burn(&device);
@@ -137,7 +138,7 @@ impl<B: Backend> SmplXGPUG<B> {
             idx_vuv_2_vnouv[usize::try_from(uv_2).unwrap_or_else(|_| panic!("Cannot cast uv_2 to usize"))] =
                 i32::try_from(nouv_2).unwrap_or_else(|_| panic!("Cannot cast nouv_2 to i32"));
         }
-        let idx_vuv_2_vnouv_vec: Vec<i32> = idx_vuv_2_vnouv.mapv(|x| x).into_raw_vec_and_offset().0;
+        let idx_vuv_2_vnouv_vec: Vec<i32> = idx_vuv_2_vnouv.mapv(|x| x).into_raw_vec();
         let idx_vuv_2_vnouv_slice: &[i32] = &idx_vuv_2_vnouv_vec;
         let b_idx_vuv_2_vnouv = Tensor::<B, 1, Int>::from_ints(idx_vuv_2_vnouv_slice, &device);
         let idx_vuv_2_vnouv_vec: Vec<usize> = idx_vuv_2_vnouv
@@ -164,6 +165,7 @@ impl<B: Backend> SmplXGPUG<B> {
         let vertex_face_csr_burn = vertex_face_csr.to_burn(&device);
         let vertex_face_uv_csr = VertexFaceCSR::from_faces(&faces_uv_mesh_na.clone());
         let vertex_face_uv_csr_burn = vertex_face_uv_csr.to_burn(&device);
+        let kinematic_tree_depth = smpl_utils::numerical::compute_tree_depth(parent_idx_per_joint);
         info!("Initialised burn on Backend: {:?}", B::name(&device));
         info!("Device: {:?}", &device);
         Self {
@@ -192,6 +194,7 @@ impl<B: Backend> SmplXGPUG<B> {
             lbs_weights_split_nd,
             vertex_face_csr: vertex_face_csr_burn,
             vertex_face_uv_csr: vertex_face_uv_csr_burn,
+            kinematic_tree_depth,
         }
     }
     /// # Panics
@@ -202,11 +205,11 @@ impl<B: Backend> SmplXGPUG<B> {
         max_num_betas: usize,
         max_num_expression_components: usize,
     ) -> Self {
-        let verts_template: nd::Array2<f32> = npz.by_name("v_template").unwrap();
-        let faces: nd::Array2<u32> = npz.by_name("f").unwrap();
-        let uv: nd::Array2<f32> = npz.by_name("vt").unwrap();
-        let full_shape_dirs: nd::Array3<f32> = npz.by_name("shapedirs").unwrap();
-        let (shape_dirs, expression_dirs) = if let Ok(expression_dirs) = npz.by_name("expressiondirs") {
+        let verts_template: nd::Array2<f32> = npz.by_name("v_template.npy").unwrap();
+        let faces: nd::Array2<u32> = npz.by_name("f.npy").unwrap();
+        let uv: nd::Array2<f32> = npz.by_name("vt.npy").unwrap();
+        let full_shape_dirs: nd::Array3<f32> = npz.by_name("shapedirs.npy").unwrap();
+        let (shape_dirs, expression_dirs) = if let Ok(expression_dirs) = npz.by_name("expressiondirs.npy") {
             (full_shape_dirs, Some(expression_dirs))
         } else {
             let num_available_betas = full_shape_dirs.shape()[2];
@@ -224,18 +227,18 @@ impl<B: Backend> SmplXGPUG<B> {
             };
             (shape_dirs, expression_dirs)
         };
-        let pose_dirs: Option<nd::Array3<f32>> = npz.by_name("posedirs").ok();
-        let joint_regressor: nd::Array2<f32> = npz.by_name("J_regressor").unwrap();
-        let parent_idx_per_joint: nd::Array2<i32> = npz.by_name("kintree_table").unwrap();
+        let pose_dirs: Option<nd::Array3<f32>> = npz.by_name("posedirs.npy").ok();
+        let joint_regressor: nd::Array2<f32> = npz.by_name("J_regressor.npy").unwrap();
+        let parent_idx_per_joint: nd::Array2<i32> = npz.by_name("kintree_table.npy").unwrap();
         #[allow(clippy::cast_sign_loss)]
         let parent_idx_per_joint = parent_idx_per_joint.mapv(|x| x as u32);
         let parent_idx_per_joint = parent_idx_per_joint
             .slice_axis(nd::Axis(0), nd::Slice::from(0..1))
             .to_owned()
-            .into_shape_with_order(NUM_JOINTS + 1)
+            .into_shape(NUM_JOINTS + 1)
             .unwrap();
-        let lbs_weights: nd::Array2<f32> = npz.by_name("weights").unwrap();
-        let ft: nd::Array2<u32> = npz.by_name("ft").unwrap();
+        let lbs_weights: nd::Array2<f32> = npz.by_name("weights.npy").unwrap();
+        let ft: nd::Array2<u32> = npz.by_name("ft.npy").unwrap();
         if pose_dirs.is_none() {
             warn!("No pose_dirs loaded from npz");
         }
@@ -288,7 +291,7 @@ impl<B: Backend> SmplXGPUG<B> {
     #[allow(clippy::cast_possible_truncation)]
     pub fn read_pose_dirs_from_reader<R: Read + Seek>(reader: R, device: &B::Device) -> Tensor<B, 2, Float> {
         let mut npz = NpzReader::new(reader).unwrap();
-        let pose_dirs: Option<nd::Array3<f32>> = Some(npz.by_name("pose_dirs").unwrap());
+        let pose_dirs: Option<nd::Array3<f32>> = Some(npz.by_name("pose_dirs.npy").unwrap());
         let b_pose_dirs =
             pose_dirs.map(|pose_dirs| Tensor::<B, 1>::from_floats(pose_dirs.as_slice().unwrap(), device).reshape([NUM_VERTS * 3, NUM_JOINTS * 9]));
         b_pose_dirs.unwrap()
@@ -339,10 +342,20 @@ impl<B: Backend> SmplModel<B> for SmplXGPUG<B> {
     }
     #[allow(clippy::missing_panics_doc)]
     #[allow(non_snake_case)]
-    fn forward(&self, options: &SmplOptions, betas: &BetasG<B>, pose_raw: &PoseG<B>, expression: Option<&ExpressionG<B>>) -> SmplOutputG<B> {
+    fn forward(
+        &self,
+        options: &SmplOptions,
+        betas: &BetasG<B>,
+        pose_raw: &PoseG<B>,
+        expression: Option<&ExpressionG<B>>,
+        vertex_offsets: Option<&VertexOffsetsG<B>>,
+    ) -> SmplOutputG<B> {
         let mut verts_t_pose = self.betas2verts(betas);
         if let Some(expression) = expression {
             verts_t_pose = verts_t_pose + self.expression2offsets(expression);
+        }
+        if let Some(vertex_offsets) = vertex_offsets {
+            verts_t_pose = verts_t_pose + vertex_offsets.strength * vertex_offsets.offsets.clone();
         }
         let pose_remap = PoseRemap::new(pose_raw.smpl_type, SmplType::SmplX);
         let pose = pose_remap.remap(pose_raw);
@@ -456,6 +469,7 @@ impl<B: Backend> SmplModel<B> for SmplXGPUG<B> {
             &self.parent_idx_per_joint_nd,
             rot_mats_t,
             joints.clone(),
+            self.kinematic_tree_depth,
         );
         let nr_verts = verts_t_pose.shape().dims[0];
         let A = rel_transforms.reshape([NUM_JOINTS + 1, 16]);
@@ -523,6 +537,9 @@ impl<B: Backend> SmplModel<B> for SmplXGPUG<B> {
     }
     fn vertex_face_uv_csr(&self) -> Option<VertexFaceCSRBurn<B>> {
         Some(self.vertex_face_uv_csr.clone())
+    }
+    fn kinematic_tree_depth(&self) -> usize {
+        self.kinematic_tree_depth
     }
 }
 pub type SmplXGPU = SmplXGPUG<AppBackend>;

@@ -1,3 +1,4 @@
+use super::codec::PySmplCodec;
 use super::entity_builder::PyEntityBuilderSmplRs;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
@@ -58,5 +59,9 @@ impl PyMcsCodec {
     #[getter]
     pub fn has_camera(&self) -> bool {
         self.inner.smpl_camera.is_some()
+    }
+    #[getter]
+    pub fn smpl_codecs(&self) -> Vec<PySmplCodec> {
+        self.inner.smpl_bodies.iter().map(|b| PySmplCodec { inner: b.codec.clone() }).collect()
     }
 }

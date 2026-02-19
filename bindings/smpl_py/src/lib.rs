@@ -1,10 +1,15 @@
 #![allow(clippy::needless_pass_by_value)]
 pub mod common;
 pub mod global_backend;
+pub mod network;
 pub mod smpl_x;
+#[cfg(feature = "burn-torch")]
+pub mod tensor_utils;
 use crate::common::types::PyFaceType;
 use crate::global_backend::init_global_burn_backend;
 use crate::global_backend::smplrs_sync_burn_gpu;
+use crate::network::py_smpl_register_components_for_receiver;
+use crate::network::py_smpl_register_components_for_sender;
 use common::{
     animation::{PyAnimWrap, PyAnimation},
     betas::PyBetas,
@@ -26,10 +31,11 @@ use common::{
     smpl_params::PySmplParams,
     transform_sequence::PyTransformSequence,
     types::{PyAngleType, PyGender, PyGltfCompatibilityMode, PySmplType, PyUpAxis},
+    vertex_offsets::PyVertexOffsets,
 };
 use pyo3::prelude::*;
 use smpl_x::{plugin::PySmplPlugin, smpl_x::PySmplX};
-/// A Python module implemented in Rust using tch to manipulate PyTorch
+/// A Python module implemented in Rust using tch to manipulate `PyTorch`
 /// objects.
 #[pymodule]
 #[pyo3(name = "smpl_rs")]
@@ -43,6 +49,7 @@ pub fn extension(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     let plugins_module = PyModule::new_bound(_py, "plugins")?;
     let codec_module = PyModule::new_bound(_py, "codec")?;
     let backend_module = PyModule::new_bound(_py, "backend")?;
+    let network_module = PyModule::new_bound(_py, "network")?;
     m.add_class::<PySmplModels>()?;
     m.add_class::<PySceneTimer>()?;
     add_submod_models(_py, &models_module)?;
@@ -52,6 +59,7 @@ pub fn extension(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     add_submod_plugins(_py, &plugins_module)?;
     add_submod_codec(_py, &codec_module)?;
     add_submod_backend(_py, &backend_module)?;
+    add_submod_network(_py, &network_module)?;
     let sys = _py.import_bound("sys")?.getattr("modules")?;
     sys.set_item("smpl_rs.models", models_module.as_ref())?;
     sys.set_item("smpl_rs.components", components_module.as_ref())?;
@@ -60,12 +68,15 @@ pub fn extension(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     sys.set_item("smpl_rs.plugins", plugins_module.as_ref())?;
     sys.set_item("smpl_rs.codec", codec_module.as_ref())?;
     sys.set_item("smpl_rs.backend", backend_module.as_ref())?;
+    sys.set_item("smpl_rs.network", network_module.as_ref())?;
     m.add_submodule(&models_module)?;
     m.add_submodule(&components_module)?;
     m.add_submodule(&types_module)?;
     m.add_submodule(&builders_module)?;
     m.add_submodule(&plugins_module)?;
     m.add_submodule(&codec_module)?;
+    m.add_submodule(&backend_module)?;
+    m.add_submodule(&network_module)?;
     Ok(())
 }
 #[pymodule]
@@ -90,6 +101,7 @@ fn add_submod_components(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyFollower>()?;
     m.add_class::<PyTransformSequence>()?;
     m.add_class::<PySceneAnimation>()?;
+    m.add_class::<PyVertexOffsets>()?;
     Ok(())
 }
 #[pymodule]
@@ -126,5 +138,11 @@ fn add_submod_codec(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
 fn add_submod_backend(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(init_global_burn_backend, m)?)?;
     m.add_function(wrap_pyfunction!(smplrs_sync_burn_gpu, m)?)?;
+    Ok(())
+}
+#[pymodule]
+fn add_submod_network(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(py_smpl_register_components_for_receiver, m)?)?;
+    m.add_function(wrap_pyfunction!(py_smpl_register_components_for_sender, m)?)?;
     Ok(())
 }

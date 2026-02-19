@@ -221,7 +221,7 @@ impl GltfCodec {
                 let bin = to_padded_byte_vector(&buffer_data);
                 let mut writer = fs::File::create(bin_path).expect("I/O error");
                 writer.write_all(&bin).expect("I/O error");
-                info!("Written glTF json + bin to {parent_path:?}");
+                info!("Written glTF json + bin to {}", parent_path.display());
             }
             GltfOutputType::Binary => {
                 let json_string = gltf_json::serialize::to_string(&root).expect("Serialization error");
@@ -241,7 +241,7 @@ impl GltfCodec {
                 let glb_path = parent_path.join(file_name_with_suffix.clone());
                 let writer = std::fs::File::create(glb_path.clone()).expect("I/O error");
                 glb.to_writer(writer).expect("glTF binary output error");
-                info!("Written binary glB to {glb_path:?}");
+                info!("Written binary glB to {}", glb_path.display());
             }
         }
     }
@@ -2237,21 +2237,21 @@ impl GltfCodec {
                 row[0] = 0.0;
                 row[2] = 0.0;
             }
-            let trans_anim_data = to_padded_byte_vector(&translation_animation_data.to_owned().into_raw_vec_and_offset().0);
+            let trans_anim_data = to_padded_byte_vector(&translation_animation_data.to_owned().into_raw_vec());
             animation_data.append(&mut trans_anim_data.clone());
-            let scale_anim_data = to_padded_byte_vector(&scale_animation_data.to_owned().into_raw_vec_and_offset().0);
+            let scale_anim_data = to_padded_byte_vector(&scale_animation_data.to_owned().into_raw_vec());
             animation_data.append(&mut scale_anim_data.clone());
-            let pelvis_rel_anim_data = to_padded_byte_vector(&pelvis_relative_trans.to_owned().into_raw_vec_and_offset().0);
+            let pelvis_rel_anim_data = to_padded_byte_vector(&pelvis_relative_trans.to_owned().into_raw_vec());
             animation_data.append(&mut pelvis_rel_anim_data.clone());
         } else {
-            let trans_anim_data = to_padded_byte_vector(&translation_animation_data.to_owned().into_raw_vec_and_offset().0);
+            let trans_anim_data = to_padded_byte_vector(&translation_animation_data.to_owned().into_raw_vec());
             animation_data.append(&mut trans_anim_data.clone());
-            let scale_anim_data = to_padded_byte_vector(&scale_animation_data.to_owned().into_raw_vec_and_offset().0);
+            let scale_anim_data = to_padded_byte_vector(&scale_animation_data.to_owned().into_raw_vec());
             animation_data.append(&mut scale_anim_data.clone());
         }
         if self.num_morph_targets() > 0 {
             let morph_target_weights_data = current_body.per_frame_blend_weights.as_ref().unwrap();
-            let weights_anim_data = to_padded_byte_vector(&morph_target_weights_data.to_owned().into_raw_vec_and_offset().0);
+            let weights_anim_data = to_padded_byte_vector(&morph_target_weights_data.to_owned().into_raw_vec());
             animation_data.append(&mut weights_anim_data.clone());
         }
         animation_data
@@ -2279,9 +2279,9 @@ impl GltfCodec {
             let joint_anim_data = to_padded_byte_vector(&quaternions);
             animation_data.append(&mut joint_anim_data.clone());
         }
-        let trans_anim_data = to_padded_byte_vector(&translation_animation_data.to_owned().into_raw_vec_and_offset().0);
+        let trans_anim_data = to_padded_byte_vector(&translation_animation_data.to_owned().into_raw_vec());
         animation_data.append(&mut trans_anim_data.clone());
-        let scale_anim_data = to_padded_byte_vector(&scale_animation_data.to_owned().into_raw_vec_and_offset().0);
+        let scale_anim_data = to_padded_byte_vector(&scale_animation_data.to_owned().into_raw_vec());
         animation_data.append(&mut scale_anim_data.clone());
         animation_data
     }
@@ -2324,7 +2324,7 @@ impl GltfCodec {
                     {
                         posedir *= 2.0 * 7.0;
                     }
-                    let posedir_data = to_padded_byte_vector(&posedir.to_owned().into_raw_vec_and_offset().0);
+                    let posedir_data = to_padded_byte_vector(&posedir.to_owned().into_raw_vec());
                     out_data.append(&mut posedir_data.clone());
                 }
             }
@@ -2806,7 +2806,7 @@ impl GltfCodec {
     fn num_morph_targets(&self) -> usize {
         self.morph_targets.as_ref().map_or(0, |x| x.shape()[0])
     }
-    /// Rotate camera rotation quaternions by a given angle and axis
+    /// Rotate camera rotation quaternions by a given angle and axis in local (camera) space.
     fn rotate_camera_quaternions(&self, angle_degrees: f32, axis: [f32; 3]) -> Option<nd::Array2<f32>> {
         if let Some(smpl_camera) = &self.smpl_camera {
             let rotations = smpl_camera.transform_sequence.get_rotations_as_quaternions();
@@ -2816,7 +2816,7 @@ impl GltfCodec {
             for mut row in rotated_quaternions.axis_iter_mut(nd::Axis(0)) {
                 let q = na::Quaternion::new(row[3], row[0], row[1], row[2]);
                 let unit_q = na::UnitQuaternion::from_quaternion(q);
-                let result = rotation_quat * unit_q;
+                let result = unit_q * rotation_quat;
                 row[0] = result.i;
                 row[1] = result.j;
                 row[2] = result.k;

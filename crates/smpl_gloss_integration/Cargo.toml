@@ -19,6 +19,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["with-gui", "private"]
 with-gui=["dep:egui", "gloss-renderer/with-gui"]
 private = ["smpl-core/private"]
+burn-torch = ["tch", "wgpu-cuda-interop/cuda"]
 
 [dependencies]
 # Workspace internal
@@ -32,6 +33,7 @@ gloss-img.workspace=true
 gloss-geometry.workspace=true
 gloss-burn-multibackend.workspace=true
 wgpu-burn-interop.workspace=true
+wgpu-cuda-interop = {workspace=true, optional = true}
 
 # Workspace third-party
 egui = {workspace=true, optional = true}
@@ -44,6 +46,12 @@ wgpu.workspace=true
 wasm-timer.workspace=true
 image.workspace=true
 bytemuck_derive.workspace=true
+tch= { workspace = true, optional = true }
+serde.workspace=true
+num-traits.workspace=true
+num-derive.workspace=true
+erased-serde.workspace=true
+bincode.workspace=true
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 crossbeam-channel.workspace=true

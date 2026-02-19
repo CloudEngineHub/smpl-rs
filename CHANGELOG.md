@@ -11,6 +11,51 @@ Unreleased` header.
 
 # Unreleased
 
+# 0.9.0
+
+### ⭐ Added
+- Added SmplXS support
+- Added vertex offsets as part of the SMPL forward pass with Scene GUI
+- Added slerp interpolation for poses and exposed to python
+- Added support for torch backend
+
+### 🔧 Changed
+- 90 degree rotation about up axis now happens across camera local up for UE5.7
+
+### 🐛 Fixed
+- Fixed quaternion to `axis_angle` conversion and interpolation jitter
+- Fixed codec assuming mcs files always had `SceneAnimations`
+
+
+# 0.8.0
+
+### ⭐ Added
+- Implemented animated props
+- Added `VertexOffset` component with GUI for modifying offset strength
+- Added Mcs support for exporting, parsing from gloss-scene, and `mcs2metadata` binary
+- Python bindings can now export glTFs with bodies for specified indices
+
+### 🔧 Changed
+- Pose and Expression now use Burn tensors with multibackend support
+- Faster `apply_pose` for smplx on GPU backends like WGPU
+- Refactored glTF export to support body only, prop only, or both
+- Updated dependencies of burn, wgpu, and egui
+
+
+# 0.7.0
+
+### ⭐ Added
+- Added ARKit regressor and `ARKitModel` with smplx-arkit blendshapes
+- `FaceType` parameter for specifying which blendshapes to use for the face and glTF export
+- Added ONNX burn features and python scripts for converting models to ONNX
+
+### 🔧 Changed
+- Rescaling for expression blend weights/shapes for Blender in Smpl compat mode
+
+### 🐛 Fixed
+- Fixed smplx reading when the smplx has less betas than what is requested
+
+
 # 0.6.0
 
 <!-- ### ⚠️ BREAKING -->

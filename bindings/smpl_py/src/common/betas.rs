@@ -1,3 +1,5 @@
+#[cfg(feature = "burn-torch")]
+use crate::tensor_utils::pytensor2burn;
 use gloss_burn_multibackend::backend::MultiDevice;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
@@ -7,6 +9,8 @@ use ndarray as nd;
 use numpy::PyArrayMethods;
 use numpy::{PyArray1, PyReadonlyArray1, ToPyArray};
 use pyo3::prelude::*;
+#[cfg(feature = "burn-torch")]
+use pyo3_tch::PyTensor;
 use smpl_core::common::betas::Betas;
 #[pyclass(name = "Betas", module = "smpl_rs.components", unsendable)]
 #[derive(Clone, PyComponent)]
@@ -22,6 +26,23 @@ impl PyBetas {
         let device = MultiDevice::default();
         let betas = betas.to_burn(&device);
         Self { inner: Betas::new(betas) }
+    }
+    #[cfg(feature = "burn-torch")]
+    #[staticmethod]
+    #[pyo3(text_signature = "(tensor: PyTensor) -> Betas")]
+    pub fn from_tensor(tensor: PyTensor) -> Self {
+        let tensor_burn = pytensor2burn::<1>(tensor);
+        Self {
+            inner: Betas::new(tensor_burn),
+        }
+    }
+    #[staticmethod]
+    #[pyo3(signature = (path_smpl_file))]
+    #[pyo3(text_signature = "(path_smpl_file: str) -> Betas")]
+    pub fn from_smpl_file(path_smpl_file: &str) -> Self {
+        Self {
+            inner: Betas::new_from_smpl_file(path_smpl_file).unwrap(),
+        }
     }
     #[staticmethod]
     #[pyo3(text_signature = "() -> Betas")]

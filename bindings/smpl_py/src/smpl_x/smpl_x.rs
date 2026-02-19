@@ -5,6 +5,7 @@ use crate::common::{
     pose::PyPose,
     smpl_options::PySmplOptions,
     types::{PyGender, PySmplType},
+    vertex_offsets::PyVertexOffsets,
 };
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
@@ -44,12 +45,25 @@ impl PySmplX {
         }
     }
     #[allow(clippy::type_complexity)]
-    #[pyo3(signature = (options, betas, pose, expression = None))]
-    #[pyo3(text_signature = "($self, options: SmplOptions, betas: Betas, pose: Pose, expression: Optional[Expression] = None) -> SmplOutput")]
-    pub fn forward(&mut self, options: &PySmplOptions, betas: &PyBetas, pose: &PyPose, expression: Option<&PyExpression>) -> PySmplOutput {
-        let smpl_output = self
-            .inner
-            .forward(&options.inner, &betas.inner, &pose.inner, expression.map(|x| &x.inner));
+    #[pyo3(signature = (options, betas, pose, expression = None, vertex_offsets = None))]
+    #[pyo3(
+        text_signature = "($self, options: SmplOptions, betas: Betas, pose: Pose, expression: Optional[Expression] = None, vertex_offsets: Optional[VertexOffsets]) -> SmplOutput"
+    )]
+    pub fn forward(
+        &mut self,
+        options: &PySmplOptions,
+        betas: &PyBetas,
+        pose: &PyPose,
+        expression: Option<&PyExpression>,
+        vertex_offsets: Option<&PyVertexOffsets>,
+    ) -> PySmplOutput {
+        let smpl_output = self.inner.forward(
+            &options.inner,
+            &betas.inner,
+            &pose.inner,
+            expression.map(|x| &x.inner),
+            vertex_offsets.map(|x| &x.inner),
+        );
         PySmplOutput { inner: smpl_output }
     }
     #[pyo3(text_signature = "($self, smpl_merged: SmplOutput) -> SmplOutput")]

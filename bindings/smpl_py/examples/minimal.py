@@ -24,8 +24,12 @@ from smpl_rs.backend import smplrs_sync_burn_gpu
 # To be called only once per process. Can select between Off, Error, Warn, Info, Debug, Trace
 setup_logger(log_level=LogLevel.Info)
 # Initialize the backend used for burn computations
-gloss_init_burn_backend("wgpu")
-smplrs_init_burn_backend("wgpu")
+# gloss_init_burn_backend("torch_cpu")
+# smplrs_init_burn_backend("torch_cpu")
+# gloss_init_burn_backend("torch_cuda",0)
+# smplrs_init_burn_backend("torch_cuda",0)
+# gloss_init_burn_backend("wgpu")
+# smplrs_init_burn_backend("wgpu")
 
 if __name__ == "__main__":
     viewer = Viewer()

@@ -51,6 +51,9 @@ gltf.workspace=true
 gltf-json = { workspace=true, features = ["extras", "extensions"] }
 image.workspace=true
 base64.workspace = true
+serde.workspace=true
+erased-serde.workspace=true
+bincode.workspace=true
 
 [dev-dependencies]
 divan.workspace=true

@@ -39,7 +39,7 @@ impl<B: Backend> PoseG<B> {
     pub fn new_empty(up_axis: UpAxis, smpl_type: SmplType) -> Self {
         let device = B::Device::default();
         let joint_poses = match smpl_type {
-            SmplType::SmplX => Tensor::<B, 2>::zeros([smpl_x::NUM_JOINTS + 1, 3], &device),
+            SmplType::SmplX | SmplType::SmplXS => Tensor::<B, 2>::zeros([smpl_x::NUM_JOINTS + 1, 3], &device),
             SmplType::SmplH => Tensor::<B, 2>::zeros([smpl_h::NUM_JOINTS + 1, 3], &device),
             _ => panic!("{smpl_type:?} is not yet supported!"),
         };
@@ -167,9 +167,9 @@ impl<B: Backend> PoseG<B> {
             }
         }
     }
-    /// Interpolate between 2 poses
+    /// Interpolate between 2 poses. Using Slerp interpolation is more accurate but also slower. Most of the time when vieweing an animation, it's enough to use `use_slerp=false`
     #[must_use]
-    pub fn interpolate(&self, other_pose: &Self, other_weight: f32) -> PoseG<B> {
+    pub fn interpolate(&self, other_pose: &Self, other_weight: f32, use_slerp: bool) -> PoseG<B> {
         if !(0.0..=1.0).contains(&other_weight) {
             warn!("pose interpolation weight is outside the [0,1] range, will clamp. Weight is {other_weight}");
         }
@@ -211,7 +211,11 @@ impl<B: Backend> PoseG<B> {
         let vec_quats = all_quats.split(self.joint_poses.dims()[0], 0);
         let cur_quats = vec_quats[0].clone();
         let other_quats = vec_quats[1].clone();
-        let interpolated_quats = smpl_utils::numerical::quaternion_interpolate_lerp(cur_quats, other_quats, other_weight);
+        let interpolated_quats = if use_slerp {
+            smpl_utils::numerical::quaternion_interpolate_slerp(cur_quats, other_quats, other_weight)
+        } else {
+            smpl_utils::numerical::quaternion_interpolate_lerp(cur_quats, other_quats, other_weight)
+        };
         let new_joint_poses = smpl_utils::numerical::quaternion_to_axis_angle_fast(interpolated_quats);
         PoseG::new(new_joint_poses, new_global_trans, self.up_axis, self.smpl_type)
     }

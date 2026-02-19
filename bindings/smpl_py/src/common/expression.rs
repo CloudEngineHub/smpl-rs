@@ -1,4 +1,6 @@
 use crate::common::types::PyFaceType;
+#[cfg(feature = "burn-torch")]
+use crate::tensor_utils::pytensor2burn;
 use gloss_burn_multibackend::backend::MultiDevice;
 use gloss_hecs::Entity;
 use gloss_py_macros::PyComponent;
@@ -8,6 +10,8 @@ use ndarray as nd;
 use numpy::PyArrayMethods;
 use numpy::{PyArray1, PyReadonlyArray1, ToPyArray};
 use pyo3::prelude::*;
+#[cfg(feature = "burn-torch")]
+use pyo3_tch::PyTensor;
 use smpl_core::common::expression::Expression;
 use smpl_core::common::types::FaceType;
 #[pyclass(name = "Expression", module = "smpl_rs.components", unsendable)]
@@ -36,6 +40,16 @@ impl PyExpression {
         let face_type = face_type.map_or(FaceType::SmplX, FaceType::from);
         Self {
             inner: Expression::new_empty(num_coeffs, face_type),
+        }
+    }
+    #[cfg(feature = "burn-torch")]
+    #[staticmethod]
+    #[pyo3(text_signature = "(tensor: PyTensor, face_type: Optional[FaceType] = None) -> Expreression")]
+    pub fn from_tensor(tensor: PyTensor, face_type: Option<PyFaceType>) -> Self {
+        let face_type = face_type.map_or(FaceType::SmplX, FaceType::from);
+        let tensor_burn = pytensor2burn::<1>(tensor);
+        Self {
+            inner: Expression::new(tensor_burn, face_type),
         }
     }
     #[staticmethod]

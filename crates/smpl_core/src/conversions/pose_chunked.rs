@@ -106,36 +106,66 @@ impl<B: Backend> PoseChunked<B> {
             return pose;
         }
         let mut pose = PoseG::<B>::new_empty(self.up_axis, smpl_type);
-        let zeros = Tensor::<B, 2, Float>::zeros([1, 3], &self.device.clone());
         pose.global_trans = self.global_trans.clone().reshape([3]);
         let jdim = pose.joint_poses.dims()[1];
-        pose.joint_poses = pose.joint_poses.clone().slice_assign(
-            [metadata.parts2jointranges[PosePart::RootRotation].clone(), 0..jdim],
-            self.global_orient.as_ref().unwrap_or(&zeros).clone(),
+        let assign = |joints: Tensor<B, 2>, slice: &Range<usize>, max: &Range<usize>, jdim: usize, chunk: Option<Tensor<B, 2>>| -> Tensor<B, 2> {
+            if slice.end > max.end || (slice.start == 0 && slice.end == 0) {
+                joints
+            } else if let Some(c) = &chunk {
+                joints.clone().slice_assign([slice.start..slice.end, 0..jdim], c.clone())
+            } else {
+                joints
+            }
+        };
+        let max_range = 0..pose.joint_poses.dims()[0];
+        pose.joint_poses = assign(
+            pose.joint_poses.clone(),
+            &metadata.parts2jointranges[PosePart::RootRotation],
+            &max_range,
+            jdim,
+            self.global_orient.clone(),
         );
-        pose.joint_poses = pose.joint_poses.clone().slice_assign(
-            [metadata.parts2jointranges[PosePart::Body].clone(), 0..jdim],
-            self.body_pose.as_ref().unwrap_or(&zeros).clone(),
+        pose.joint_poses = assign(
+            pose.joint_poses.clone(),
+            &metadata.parts2jointranges[PosePart::Body],
+            &max_range,
+            jdim,
+            self.body_pose.clone(),
         );
-        pose.joint_poses = pose.joint_poses.clone().slice_assign(
-            [metadata.parts2jointranges[PosePart::LeftHand].clone(), 0..jdim],
-            self.left_hand_pose.as_ref().unwrap_or(&zeros).clone(),
+        pose.joint_poses = assign(
+            pose.joint_poses.clone(),
+            &metadata.parts2jointranges[PosePart::LeftHand],
+            &max_range,
+            jdim,
+            self.left_hand_pose.clone(),
         );
-        pose.joint_poses = pose.joint_poses.clone().slice_assign(
-            [metadata.parts2jointranges[PosePart::RightHand].clone(), 0..jdim],
-            self.right_hand_pose.as_ref().unwrap_or(&zeros).clone(),
+        pose.joint_poses = assign(
+            pose.joint_poses.clone(),
+            &metadata.parts2jointranges[PosePart::RightHand],
+            &max_range,
+            jdim,
+            self.right_hand_pose.clone(),
         );
-        pose.joint_poses = pose.joint_poses.clone().slice_assign(
-            [metadata.parts2jointranges[PosePart::Jaw].clone(), 0..jdim],
-            self.jaw_pose.as_ref().unwrap_or(&zeros).clone(),
+        pose.joint_poses = assign(
+            pose.joint_poses.clone(),
+            &metadata.parts2jointranges[PosePart::Jaw],
+            &max_range,
+            jdim,
+            self.jaw_pose.clone(),
         );
-        pose.joint_poses = pose.joint_poses.clone().slice_assign(
-            [metadata.parts2jointranges[PosePart::LeftEye].clone(), 0..jdim],
-            self.left_eye_pose.as_ref().unwrap_or(&zeros).clone(),
+        pose.joint_poses = assign(
+            pose.joint_poses.clone(),
+            &metadata.parts2jointranges[PosePart::LeftEye],
+            &max_range,
+            jdim,
+            self.left_eye_pose.clone(),
         );
-        pose.joint_poses = pose.joint_poses.clone().slice_assign(
-            [metadata.parts2jointranges[PosePart::RightEye].clone(), 0..jdim],
-            self.right_eye_pose.as_ref().unwrap_or(&zeros).clone(),
+        pose.joint_poses = assign(
+            pose.joint_poses.clone(),
+            &metadata.parts2jointranges[PosePart::RightEye],
+            &max_range,
+            jdim,
+            self.right_eye_pose.clone(),
         );
         pose
     }

@@ -47,7 +47,7 @@ impl PySmplModels {
         let entity = Entity::from_bits(entity_bits).unwrap();
         let scene_ptr = scene_ptr_idx as *mut Scene;
         let scene: &mut Scene = unsafe { &mut *scene_ptr };
-        scene.world.insert_one(entity, self.inner.take().unwrap()).ok();
+        scene.world_mut().insert_one(entity, self.inner.take().unwrap()).ok();
     }
     #[staticmethod]
     #[pyo3(text_signature = "(entity_bits: int, scene_ptr_idx: int) -> SmplCache")]

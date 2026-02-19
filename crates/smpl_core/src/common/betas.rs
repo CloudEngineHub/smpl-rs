@@ -44,7 +44,7 @@ impl<B: Backend> BetasG<B> {
     fn new_from_npz_reader<R: Read + Seek>(npz: &mut NpzReader<R>, truncate_nr_betas: Option<usize>) -> Self {
         info!("NPZ keys - {:?}", npz.names().unwrap());
         let device = B::Device::default();
-        let betas: nd::Array1<f64> = npz.by_name("betas").unwrap();
+        let betas: nd::Array1<f64> = npz.by_name("betas.npy").unwrap();
         let mut betas = betas.mapv(|x| x as f32);
         if let Some(truncate_nr_betas) = truncate_nr_betas {
             if truncate_nr_betas < betas.len() {

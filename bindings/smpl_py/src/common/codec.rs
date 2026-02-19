@@ -97,4 +97,8 @@ impl PySmplCodec {
     pub fn vertex_offsets(&self, py: Python<'_>) -> Option<Py<PyArray2<f32>>> {
         self.inner.vertex_offsets.as_ref().map(|arr| arr.to_pyarray_bound(py).into())
     }
+    #[pyo3(text_signature = "($self, path: str) -> None")]
+    pub fn to_file(&self, path: &str) {
+        self.inner.to_file(path);
+    }
 }

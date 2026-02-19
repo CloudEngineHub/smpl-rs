@@ -4,10 +4,7 @@ use gloss_renderer::viewer::Viewer;
 use gloss_renderer::{config::LogLevel, gloss_setup_logger};
 use smpl_core::codec::scene::McsCodec;
 use smpl_core::common::animation::{AnimWrap, AnimationConfig};
-use smpl_core::common::{
-    smpl_model::SmplCache,
-    types::{Gender, SmplType},
-};
+use smpl_core::common::smpl_model::SmplCache;
 use smpl_gloss_integration::{
     plugin::SmplPlugin,
     scene::{McsCodecGloss, SceneAnimation},
@@ -19,8 +16,8 @@ fn main() {
     let config_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("config/config.toml");
     let mut viewer = Viewer::new(config_path.to_str());
     let mut smpl_models = SmplCache::default();
-    smpl_models.set_lazy_loading(SmplType::SmplX, Gender::Neutral, "./data/smplx/SMPLX_neutral_array_f32_slim.npz");
-    let scene_path = "data/mcs/red_shirt_guy.mcs";
+    smpl_models.lazy_load_defaults();
+    let scene_path = "data/mcs/football.mcs";
     let mut mcs_codec = McsCodec::from_file(scene_path);
     mcs_codec.insert_into_scene(viewer.scene_mut(), true);
     if let Some(frame_rate) = mcs_codec.frame_rate {

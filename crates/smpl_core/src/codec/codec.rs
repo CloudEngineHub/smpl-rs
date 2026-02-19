@@ -1,7 +1,7 @@
 use crate::common::types::{Gender, SmplType};
 use log::info;
 use ndarray as nd;
-use ndarray_npy::{NpzReader, NpzWriter};
+use ndarray_npy::{NpzReader, NpzWriter, ReadNpzError, ReadableElement};
 use num_traits::FromPrimitive;
 use smpl_utils::log;
 use std::{
@@ -86,71 +86,90 @@ impl SmplCodec {
     /// # Panics
     /// Will panic if it can't write the npz
     pub fn write_to_npz<W: Write + Seek>(&self, npz: &mut NpzWriter<W>) {
-        npz.add_array("smplVersion", &nd::Array0::<i32>::from_elem((), self.smpl_version))
+        npz.add_array("smplVersion.npy", &nd::Array0::<i32>::from_elem((), self.smpl_version))
             .unwrap();
-        npz.add_array("gender", &nd::Array0::<i32>::from_elem((), self.gender)).unwrap();
+        npz.add_array("gender.npy", &nd::Array0::<i32>::from_elem((), self.gender)).unwrap();
         if let Some(shape_params) = &self.shape_parameters {
-            npz.add_array("shapeParameters", shape_params).unwrap();
+            npz.add_array("shapeParameters.npy", shape_params).unwrap();
         }
         if let Some(expression_parameters) = &self.expression_parameters {
-            npz.add_array("expressionParameters", expression_parameters).unwrap();
+            npz.add_array("expressionParameters.npy", expression_parameters).unwrap();
         }
-        npz.add_array("frameCount", &nd::Array0::<i32>::from_elem((), self.frame_count)).unwrap();
+        npz.add_array("frameCount.npy", &nd::Array0::<i32>::from_elem((), self.frame_count))
+            .unwrap();
         if let Some(frame_rate) = self.frame_rate {
-            npz.add_array("frameRate", &nd::Array0::<f32>::from_elem((), frame_rate)).unwrap();
+            npz.add_array("frameRate.npy", &nd::Array0::<f32>::from_elem((), frame_rate)).unwrap();
         }
         if let Some(body_translation) = &self.body_translation {
-            npz.add_array("bodyTranslation", body_translation).unwrap();
+            npz.add_array("bodyTranslation.npy", body_translation).unwrap();
         }
         if let Some(body_pose) = &self.body_pose {
-            npz.add_array("bodyPose", body_pose).unwrap();
+            npz.add_array("bodyPose.npy", body_pose).unwrap();
         }
         if let Some(head_pose) = &self.head_pose {
-            npz.add_array("headPose", head_pose).unwrap();
+            npz.add_array("headPose.npy", head_pose).unwrap();
         }
         if let Some(left_hand_pose) = &self.left_hand_pose {
-            npz.add_array("leftHandPose", left_hand_pose).unwrap();
+            npz.add_array("leftHandPose.npy", left_hand_pose).unwrap();
         }
         if let Some(right_hand_pose) = &self.right_hand_pose {
-            npz.add_array("rightHandPose", right_hand_pose).unwrap();
+            npz.add_array("rightHandPose.npy", right_hand_pose).unwrap();
         }
         if let Some(vertex_offsets) = &self.vertex_offsets {
-            npz.add_array("vertexOffsets", vertex_offsets).unwrap();
+            npz.add_array("vertexOffsets.npy", vertex_offsets).unwrap();
         }
     }
+    /// Wrapper around [`NpzReader::by_name`] that handles both `"key"` and `"key.npy"` entry names
+    /// for backwards compatibility with `.smpl` files generated with a different `ndarray` version.
+    fn npz_by_name<R, S, D>(npz: &mut NpzReader<R>, name: &str) -> Result<nd::ArrayBase<S, D>, ReadNpzError>
+    where
+        R: Read + Seek,
+        S: nd::DataOwned,
+        S::Elem: ReadableElement,
+        D: nd::Dimension,
+    {
+        npz.by_name(name).or_else(|_| {
+            let alt = match name.strip_suffix(".npy") {
+                Some(stem) => stem.to_string(),
+                None => format!("{name}.npy"),
+            };
+            npz.by_name(&alt)
+        })
+    }
     fn from_npz_reader<R: Read + Seek>(npz: &mut NpzReader<R>) -> Self {
-        let smpl_version_arr: nd::Array0<i32> = npz.by_name("smplVersion").expect("smplVersion.npy should exist and be a int32");
+        let smpl_version_arr: nd::Array0<i32> = Self::npz_by_name(npz, "smplVersion.npy").expect("smplVersion.npy should exist and be a int32");
         let smpl_version = smpl_version_arr.into_scalar();
-        let gender_arr: nd::Array0<i32> = npz.by_name("gender").expect("gender.npy should exist and be a int32");
+        let gender_arr: nd::Array0<i32> = Self::npz_by_name(npz, "gender.npy").expect("gender.npy should exist and be a int32");
         let gender = gender_arr.into_scalar();
-        let shape_parameters: Option<nd::Array1<f32>> = npz.by_name("shapeParameters").ok();
-        let expression_parameters: Option<nd::Array2<f32>> = npz.by_name("expressionParameters").ok();
-        let frame_count_arr: nd::Array0<i32> = npz.by_name("frameCount").expect("frameCount.npy should exist and be a int32");
+        let shape_parameters: Option<nd::Array1<f32>> = Self::npz_by_name(npz, "shapeParameters.npy").ok();
+        let expression_parameters: Option<nd::Array2<f32>> = Self::npz_by_name(npz, "expressionParameters.npy").ok();
+        let frame_count_arr: nd::Array0<i32> = Self::npz_by_name(npz, "frameCount.npy").expect("frameCount.npy should exist and be a int32");
         let frame_count = frame_count_arr.into_scalar();
-        let body_translation: Option<nd::Array2<f32>> = npz.by_name("bodyTranslation").ok();
+        let body_translation: Option<nd::Array2<f32>> = Self::npz_by_name(npz, "bodyTranslation.npy").ok();
         let (head_pose, left_hand_pose, right_hand_pose) = if smpl_version == 4 {
             (None, None, None)
         } else {
             (
-                npz.by_name("headPose").ok(),
-                npz.by_name("leftHandPose").ok(),
-                npz.by_name("rightHandPose").ok(),
+                Self::npz_by_name(npz, "headPose.npy").ok(),
+                Self::npz_by_name(npz, "leftHandPose.npy").ok(),
+                Self::npz_by_name(npz, "rightHandPose.npy").ok(),
             )
         };
         let body_pose: Option<nd::Array3<f32>> = if smpl_version == 4 {
-            npz.by_name("bodyPose").ok().map(|arr2: nd::Array2<f32>| arr2.insert_axis(nd::Axis(2)))
+            Self::npz_by_name(npz, "bodyPose.npy")
+                .ok()
+                .map(|arr2: nd::Array2<f32>| arr2.insert_axis(nd::Axis(2)))
         } else {
-            npz.by_name("bodyPose").ok()
+            Self::npz_by_name(npz, "bodyPose.npy").ok()
         };
         let frame_rate = if frame_count > 1 {
-            let fps_arr: nd::Array0<f32> = npz
-                .by_name("frameRate")
-                .expect("frameRate.npy should exist and be a f32. It's required because frameCount >1");
+            let fps_arr: nd::Array0<f32> =
+                Self::npz_by_name(npz, "frameRate.npy").expect("frameRate.npy should exist and be a f32. It's required because frameCount >1");
             Some(fps_arr.into_scalar())
         } else {
             None
         };
-        let vertex_offsets: Option<nd::Array2<f32>> = npz.by_name("vertexOffsets").ok();
+        let vertex_offsets: Option<nd::Array2<f32>> = Self::npz_by_name(npz, "vertexOffsets.npy").ok();
         Self {
             smpl_version,
             gender,

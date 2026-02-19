@@ -77,6 +77,7 @@ ignore = [
     "RUSTSEC-2024-0384", #TODO instant pulled by parking_lot
     "RUSTSEC-2024-0436", #TODO paste (dep of abi_stable) is no longer maintained
     "RUSTSEC-2025-0020", #TODO pyo3; Risk of buffer overflow in `PyString::from_object`
+    "RUSTSEC-2025-0141"  #TODO: bincode is unmaintained but used by burn. Currently allowing the usage of bincode until further burn updates
 ]
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
@@ -246,6 +247,7 @@ skip-tree = [
     { name = "toml" }, #burn and gloss pull different versions of this
     { name = "naga" }, #include-wgsl-oil pulls this dependency which conflicts with the one that wgpu pulls
     { name = "windows" },           #re-memory pull windows 0.52 but wgpu-hal->gpu-allcator pull windows 0.58.
+    { name = "ndarray" },           #burn-import needs ndarray 0.16 but we need ndarray 0.15 for python integration since we need pytorch 2.6(and a fixed version of pyo3 and pyo3-tch)
 ]
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:

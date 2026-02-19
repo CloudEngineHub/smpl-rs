@@ -8,12 +8,12 @@ use crate::{codec::codec::SmplCodec, common::types::FaceType};
 use burn::prelude::Backend;
 use core::time::Duration;
 use gloss_utils::nshare::{RefNdarray1, ToNalgebra};
-use log::debug;
 use log::warn;
 use nalgebra as na;
 use nd::concatenate;
 use ndarray as nd;
 use ndarray_npy::NpzReader;
+use num_derive::FromPrimitive;
 use serde_json::Value;
 use smpl_utils::{
     io::FileLoader,
@@ -21,7 +21,7 @@ use smpl_utils::{
 };
 use std::io::{Read, Seek};
 /// Animation Wrap mode
-#[derive(PartialEq, PartialOrd, Clone, Default)]
+#[derive(PartialEq, PartialOrd, Clone, Default, FromPrimitive)]
 pub enum AnimWrap {
     Clamp,
     #[default]
@@ -126,17 +126,14 @@ impl Animation {
     }
     #[allow(clippy::cast_possible_truncation)]
     fn new_from_npz_reader<R: Read + Seek>(npz: &mut NpzReader<R>, config: AnimationConfig) -> Self {
-        debug!("npz names is {:?}", npz.names().unwrap());
-        let per_frame_joint_poses: nd::Array2<f64> = npz.by_name("poses").unwrap();
+        let per_frame_joint_poses: nd::Array2<f64> = npz.by_name("poses.npy").unwrap();
         let animation_frames = per_frame_joint_poses.nrows();
         let num_joints_3 = per_frame_joint_poses.ncols();
         let per_frame_joint_poses = per_frame_joint_poses.mapv(|x| x as f32);
-        let per_frame_joint_poses = per_frame_joint_poses
-            .into_shape_with_order((animation_frames, num_joints_3 / 3, 3))
-            .unwrap();
-        let per_frame_global_trans: nd::Array2<f64> = npz.by_name("trans").unwrap();
+        let per_frame_joint_poses = per_frame_joint_poses.into_shape((animation_frames, num_joints_3 / 3, 3)).unwrap();
+        let per_frame_global_trans: nd::Array2<f64> = npz.by_name("trans.npy").unwrap();
         let per_frame_global_trans = per_frame_global_trans.mapv(|x| x as f32);
-        let per_frame_expression_coeffs: Option<nd::Array2<f64>> = npz.by_name("expressionParameters").ok();
+        let per_frame_expression_coeffs: Option<nd::Array2<f64>> = npz.by_name("expressionParameters.npy").ok();
         let per_frame_expression_coeffs = per_frame_expression_coeffs.map(|x| x.mapv(|x| x as f32));
         Self::new_from_matrices(per_frame_joint_poses, per_frame_global_trans, per_frame_expression_coeffs, config)
     }
@@ -346,15 +343,15 @@ impl Animation {
         (frame_floor as usize, frame_ceil as usize, w_ceil)
     }
     /// Get the pose and translation at the current time, interpolates if
-    /// necessary
+    /// necessary. Using Slerp interpolation is more accurate but also slower. Most of the time when vieweing an animation, it's enough to use `use_slerp=false`
     #[allow(clippy::cast_precision_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_sign_loss)]
-    pub fn get_current_pose<B: Backend>(&mut self) -> PoseG<B> {
+    pub fn get_current_pose<B: Backend>(&mut self, use_slerp: bool) -> PoseG<B> {
         let (frame_floor, frame_ceil, w_ceil) = self.get_smooth_time_indices();
         let anim_frame_ceil = self.get_pose_at_idx(frame_ceil);
         let anim_frame_floor = self.get_pose_at_idx(frame_floor);
-        anim_frame_floor.interpolate(&anim_frame_ceil, w_ceil)
+        anim_frame_floor.interpolate(&anim_frame_ceil, w_ceil, use_slerp)
     }
     /// Get pose at a certain frame ID
     #[allow(clippy::cast_precision_loss)]

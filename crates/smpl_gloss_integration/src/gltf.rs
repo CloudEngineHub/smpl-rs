@@ -7,7 +7,6 @@ use gloss_renderer::{
 use gloss_utils::{
     bshare::{ToNalgebraFloat, ToNalgebraInt, ToNdArray},
     nshare::ToNalgebra,
-    tensor::DynamicMatrixOps,
 };
 use image::imageops::FilterType;
 use log::info;
@@ -30,6 +29,7 @@ use smpl_core::{
         smpl_model::SmplCache,
         smpl_options::SmplOptions,
         types::{FaceType, UpAxis},
+        vertex_offsets::VertexOffsets,
     },
 };
 use smpl_core::{
@@ -90,7 +90,7 @@ impl GltfCodecGloss for GltfCodec {
     fn from_scene_with_body_indices(scene: &Scene, options: &GltfInteropOptions, body_idxs: Vec<usize>) -> GltfCodec {
         assert!(!body_idxs.is_empty(), "At least one index must be specified");
         let smpl_models = scene.get_resource::<&SmplCache>().unwrap();
-        let num_smpl_bodies = scene.world.query::<&SmplParams>().iter().len();
+        let num_smpl_bodies = scene.world().query::<&SmplParams>().iter().len();
         if *body_idxs.iter().max().unwrap() >= num_smpl_bodies {
             info!("Some of the indices are out of range. Ignoring these indices.");
         }
@@ -106,7 +106,7 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
     let mut gltf_codec = GltfCodec::default();
     let mut nr_frames = 0;
     let mut camera_name = String::new();
-    let mut cameras_query = scene.world.query::<(&ProjectionWithFov, &TransformSequence, &Name)>();
+    let mut cameras_query = scene.world().query::<(&ProjectionWithFov, &TransformSequence, &Name)>();
     if let Some((_, (projection, transform_sequence, name))) = cameras_query.iter().next() {
         camera_name.clone_from(&name.0);
         if options.export_camera {
@@ -116,7 +116,7 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
             });
         }
     }
-    let mut query = scene.world.query::<(&SmplParams, &Name)>();
+    let mut query = scene.world().query::<(&SmplParams, &Name)>();
     let num_bodies = query.iter().len();
     gltf_codec.num_bodies = num_bodies;
     let mut should_export_posedirs = false;
@@ -124,7 +124,7 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
 
     let mut num_expression_blend_shapes = 0;
     for (entity, (smpl_params, _name)) in query.iter() {
-        if scene.world.has::<Animation>(entity).unwrap() && smpl_params.enable_pose_corrective {
+        if scene.world().has::<Animation>(entity).unwrap() && smpl_params.enable_pose_corrective {
             should_export_posedirs = true;
         }
         let smpl_model = smpl_models.get_model_ref(smpl_params.smpl_type, smpl_params.gender).unwrap();
@@ -136,7 +136,7 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
         }
     }
 
-    if let Ok(scene_anim) = scene.get_resource::<&SceneAnimation>() {
+    if let Some(scene_anim) = scene.get_resource::<&SceneAnimation>().ok().filter(|anim| anim.num_frames > 1) {
         nr_frames = scene_anim.num_frames;
         let mut keyframe_times: Vec<f32> = Vec::new();
         let fps = scene_anim.config.fps;
@@ -167,9 +167,16 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
         } else {
             Betas::default()
         };
+        let vertex_offsets = scene.get_comp::<&VertexOffsets>(&entity).ok().map(|v| v.deref().clone());
         let default_pose = Pose::new_empty(UpAxis::Y, smpl_params.smpl_type);
         let default_expression = Expression::new_empty(10, FaceType::SmplX);
-        let mut smpl_output = smpl_model.forward(&SmplOptions::default(), &betas, &default_pose, Some(&default_expression));
+        let mut smpl_output = smpl_model.forward(
+            &SmplOptions::default(),
+            &betas,
+            &default_pose,
+            Some(&default_expression),
+            vertex_offsets.as_ref(),
+        );
         smpl_output.compute_normals();
         smpl_output = smpl_model.create_body_with_uv(&smpl_output);
         let metadata = smpl_metadata(&smpl_params.smpl_type);
@@ -234,7 +241,7 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
                 current_body.roughness_textures = Some(get_image(img, true, options.max_texture_size));
             }
         }
-        if scene.world.has::<Pose>(entity).unwrap() && !scene.world.has::<Animation>(entity).unwrap() {
+        if scene.world().has::<Pose>(entity).unwrap() && !scene.world().has::<Animation>(entity).unwrap() {
             let Ok(pose_ref) = scene.get_comp::<&Pose>(&entity) else {
                 panic!("Pose component doesn't exist");
             };
@@ -251,7 +258,7 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
             }
         }
         #[allow(clippy::cast_precision_loss)]
-        if scene.world.has::<Animation>(entity).unwrap() {
+        if scene.world().has::<Animation>(entity).unwrap() {
             let scene_anim = scene.get_resource::<&SceneAnimation>().unwrap();
             nr_frames = scene_anim.num_frames;
             info!("Processing Animation for body {body_idx:?}");
@@ -269,14 +276,14 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
                     let pose_dirs_merged = smpl_model
                         .get_pose_dirs()
                         .to_ndarray()
-                        .into_shape_with_order((nr_elem_merged, 3, metadata.num_pose_blend_shapes))
+                        .into_shape((nr_elem_merged, 3, metadata.num_pose_blend_shapes))
                         .unwrap();
                     let mapping = smpl_model.idx_split_2_merged_vec();
                     let cols = vec![0, 1, 2];
                     let depth = (0..metadata.num_pose_blend_shapes).collect::<Vec<_>>().into_boxed_slice();
                     let pose_blend_shapes = pose_dirs_merged
                         .gather(mapping, &cols, &depth)
-                        .into_shape_with_order((vertex_count, 3, metadata.num_pose_blend_shapes))
+                        .into_shape((vertex_count, 3, metadata.num_pose_blend_shapes))
                         .unwrap()
                         .permuted_axes([2, 0, 1]);
                     let pi = nd::Array1::<f32>::from_elem(metadata.num_pose_blend_shapes, -PI);
@@ -307,14 +314,14 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
                         let nr_elem_merged = expr_dirs.dims()[0] / 3;
                         let expression_dirs_merged = expr_dirs
                             .to_ndarray()
-                            .into_shape_with_order((nr_elem_merged, 3, num_expression_blend_shapes))
+                            .into_shape((nr_elem_merged, 3, num_expression_blend_shapes))
                             .unwrap();
                         let mapping = smpl_model.idx_split_2_merged_vec();
                         let cols = vec![0, 1, 2];
                         let depth = (0..num_expression_blend_shapes).collect::<Vec<_>>().into_boxed_slice();
                         let expression_dirs_split = expression_dirs_merged
                             .gather(mapping, &cols, &depth)
-                            .into_shape_with_order((vertex_count, 3, num_expression_blend_shapes))
+                            .into_shape((vertex_count, 3, num_expression_blend_shapes))
                             .unwrap()
                             .permuted_axes([2, 0, 1]);
                         let expression_bounds = nd::Array1::<f32>::from_elem(num_expression_blend_shapes, -7.0);
@@ -423,7 +430,7 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
         gltf_codec.per_body_data.push(current_body);
     }
     let mut query_props = scene
-        .world
+        .world()
         .query::<(&Verts, &Faces, &TransformSequence, Option<&UVs>, Option<&DiffuseImg>, &Name)>();
     for (_entity, (verts, faces, transform_sequence, uv, diffuse_img, name)) in query_props.iter() {
         if name.0 == camera_name {
@@ -432,10 +439,10 @@ fn gltfcodec_from_scene(scene: &Scene, smpl_models: &SmplCache, options: &GltfIn
         let scales_vec3 = transform_sequence.scales.iter().flat_map(|s| vec![*s, *s, *s]).collect::<Vec<f32>>();
         let scales_ndarray3 = nd::Array2::from_shape_vec((transform_sequence.num_frames(), 3), scales_vec3).unwrap();
         let prop_data = PropData {
-            positions: verts.0.to_ndarray().into_nalgebra(),
-            faces: faces.0.to_ndarray().into_nalgebra(),
+            positions: verts.0.clone(),
+            faces: faces.0.clone(),
             normals: None,
-            uvs: uv.map(|uv| uv.0.to_ndarray().into_nalgebra()),
+            uvs: uv.map(|uv| uv.0.clone()),
             diffuse_texture: diffuse_img.and_then(|diffuse_img| {
                 diffuse_img
                     .generic_img

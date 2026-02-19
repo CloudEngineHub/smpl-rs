@@ -42,7 +42,7 @@ impl SmplCodecGloss for SmplCodec {
         if let Ok(betas) = scene.get_comp::<&Betas>(entity) {
             codec.shape_parameters = Some(betas.betas.clone().to_ndarray());
         }
-        if scene.world.has::<Pose>(*entity).unwrap() && !scene.world.has::<Animation>(*entity).unwrap() {
+        if scene.world().has::<Pose>(*entity).unwrap() && !scene.world().has::<Animation>(*entity).unwrap() {
             log!("we are writing a pose in the codec");
             let pose = scene.get_comp::<&Pose>(entity).unwrap();
             let metadata = smpl_metadata(&smpl_params.smpl_type);
@@ -77,7 +77,7 @@ impl SmplCodecGloss for SmplCodec {
             if let Some(right_hand_pose) = chunked.right_hand_pose {
                 codec.right_hand_pose = Some(right_hand_pose.to_ndarray().insert_axis(nd::Axis(0)));
             }
-        } else if scene.world.has::<Animation>(*entity).unwrap() {
+        } else if scene.world().has::<Animation>(*entity).unwrap() {
             log!("we are writing a animation in the codec");
             let anim = scene.get_comp::<&Animation>(entity).unwrap();
             let metadata = smpl_metadata(&smpl_params.smpl_type);
@@ -144,6 +144,9 @@ impl SmplCodecGloss for SmplCodec {
             codec.head_pose = Some(full_head_pose);
             codec.left_hand_pose = Some(full_left_hand_pose);
             codec.right_hand_pose = Some(full_right_hand_pose);
+        }
+        if let Ok(vertex_offsets) = scene.get_comp::<&VertexOffsets>(entity) {
+            codec.vertex_offsets = Some(vertex_offsets.offsets.clone().to_ndarray());
         }
         codec
     }

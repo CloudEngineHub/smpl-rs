@@ -5,7 +5,7 @@ use super::{
     types::{Gender, SmplType},
 };
 use crate::{
-    common::{betas::BetasG, outputs::SmplOutputG},
+    common::{betas::BetasG, outputs::SmplOutputG, vertex_offsets::VertexOffsetsG},
     AppBackend,
 };
 use burn::{
@@ -32,7 +32,14 @@ pub trait SmplModel<B: Backend>: Send + Sync + 'static + Any + DynClone {
     fn smpl_type(&self) -> SmplType;
     fn gender(&self) -> Gender;
     fn device(&self) -> B::Device;
-    fn forward(&self, options: &SmplOptions, betas: &BetasG<B>, pose_raw: &PoseG<B>, expression: Option<&ExpressionG<B>>) -> SmplOutputG<B>;
+    fn forward(
+        &self,
+        options: &SmplOptions,
+        betas: &BetasG<B>,
+        pose_raw: &PoseG<B>,
+        expression: Option<&ExpressionG<B>>,
+        vertex_offsets: Option<&VertexOffsetsG<B>>,
+    ) -> SmplOutputG<B>;
     fn create_body_with_uv(&self, smpl_output: &SmplOutputG<B>) -> SmplOutputG<B>;
     fn get_face_model(&self) -> &dyn FaceModel<B>;
     fn betas2verts(&self, betas: &BetasG<B>) -> Tensor<B, 2, Float>;
@@ -59,6 +66,7 @@ pub trait SmplModel<B: Backend>: Send + Sync + 'static + Any + DynClone {
     fn get_expression_dirs(&self) -> Option<Tensor<B, 2, Float>>;
     fn vertex_face_csr(&self) -> Option<VertexFaceCSRBurn<B>>;
     fn vertex_face_uv_csr(&self) -> Option<VertexFaceCSRBurn<B>>;
+    fn kinematic_tree_depth(&self) -> usize;
     fn clone_dyn(&self) -> Box<dyn SmplModel<B>>;
     fn as_any(&self) -> &dyn Any;
 }
@@ -87,6 +95,9 @@ pub struct SmplCacheG<B: Backend> {
 impl<B: Backend> SmplCacheG<B> {
     pub fn add_model<T: SmplModel<B> + FaceModel<B>>(&mut self, model: T, cache_models: bool) {
         let smpl_type = model.smpl_type();
+        self.add_model_under_type(smpl_type, model, cache_models);
+    }
+    pub fn add_model_under_type<T: SmplModel<B> + FaceModel<B>>(&mut self, smpl_type: SmplType, model: T, cache_models: bool) {
         let gender = model.gender();
         if !cache_models {
             self.type_to_model = EnumMap::default();
@@ -142,13 +153,13 @@ impl<B: Backend> SmplCacheG<B> {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn add_model_from_type(&mut self, smpl_type: SmplType, path: &str, gender: Gender, max_num_betas: usize, num_expression_components: usize) {
         match smpl_type {
-            SmplType::SmplX => {
+            SmplType::SmplX | SmplType::SmplXS => {
                 use crate::smpl_x::smpl_x_gpu::SmplXGPUG;
                 let new_model = SmplXGPUG::new_from_npz(path, gender, max_num_betas, num_expression_components);
-                self.add_model(new_model, true);
+                self.add_model_under_type(smpl_type, new_model, true);
             }
             _ => panic!("Model loading for {smpl_type:?} if not supported yet!"),
-        };
+        }
     }
 }
 pub type SmplCache = SmplCacheG<AppBackend>;

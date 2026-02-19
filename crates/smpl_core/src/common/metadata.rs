@@ -44,7 +44,7 @@ pub fn smpl_metadata(smpl_type: &SmplType) -> SmplMetadata {
                 ..Default::default()
             }
         }
-        SmplType::SmplX => {
+        SmplType::SmplX | SmplType::SmplXS => {
             let parts = smpl_x_pose_parts::PosePartRanges::empty();
             SmplMetadata {
                 num_body_joints: smpl_x::NUM_BODY_JOINTS,

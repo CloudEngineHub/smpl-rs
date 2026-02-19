@@ -17,6 +17,6 @@ impl PyEntityBuilderSmplRs {
         let entity = Entity::from_bits(entity_bits).unwrap();
         let scene_ptr = scene_ptr_idx as *mut Scene;
         let scene: &mut Scene = unsafe { &mut *scene_ptr };
-        scene.world.insert(entity, self.inner.take().unwrap().build()).ok();
+        scene.world_mut().insert(entity, self.inner.take().unwrap().build()).ok();
     }
 }

@@ -11,6 +11,9 @@ pub enum SmplType {
     SmplX,
     Supr,
     SmplPP,
+    Skel,
+    Smil,
+    SmplXS,
 }
 #[derive(Clone, Copy, Debug, Enum, FromPrimitive, PartialEq)]
 pub enum FaceType {

@@ -1,6 +1,6 @@
 use burn::prelude::Tensor;
 use burn::{
-    backend::{Candle, NdArray, Wgpu},
+    backend::{Candle, Wgpu},
     prelude::Backend,
 };
 use divan::black_box;
@@ -20,7 +20,7 @@ const SMPLX_NEUTRAL_PATH: &str = "../../data/smplx/SMPLX_neutral_array_f32_slim.
 fn main() {
     divan::main();
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_forward<B>(bencher: Bencher)
 where
     B: Backend,
@@ -30,11 +30,17 @@ where
     let betas = BetasG::new_empty(10);
     let pose = PoseG::new_empty(UpAxis::Y, SmplType::SmplX);
     bencher.bench_local(move || {
-        black_box(smpl_model.forward(black_box(&smpl_options), black_box(&betas), black_box(&pose), black_box(None)));
+        black_box(smpl_model.forward(
+            black_box(&smpl_options),
+            black_box(&betas),
+            black_box(&pose),
+            black_box(None),
+            black_box(None),
+        ));
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_betas2verts<B>(bencher: Bencher)
 where
     B: Backend,
@@ -46,7 +52,7 @@ where
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_verts2joints<B>(bencher: Bencher)
 where
     B: Backend,
@@ -59,7 +65,7 @@ where
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_pose_correctives<B>(bencher: Bencher)
 where
     B: Backend,
@@ -71,7 +77,7 @@ where
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_apply_pose<B>(bencher: Bencher)
 where
     B: Backend,
@@ -91,7 +97,7 @@ where
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_batch_rodrigues<B>(bencher: Bencher)
 where
     B: Backend,
@@ -104,7 +110,7 @@ where
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_batch_rodrigues_2<B>(bencher: Bencher)
 where
     B: Backend,
@@ -117,7 +123,7 @@ where
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_batch_rodrigues_3<B>(bencher: Bencher)
 where
     B: Backend,
@@ -130,7 +136,7 @@ where
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_batch_rigid_transform<B>(bencher: Bencher)
 where
     B: Backend,
@@ -152,7 +158,7 @@ where
         B::sync(&smpl_model.device);
     });
 }
-#[divan::bench(types = [Candle, NdArray, Wgpu])]
+#[divan::bench(types = [Candle, Wgpu])]
 fn smplx_batch_rigid_transform_fast<B>(bencher: Bencher)
 where
     B: Backend,
@@ -164,12 +170,14 @@ where
     let rot_mats_t = batch_rodrigues_burn_2(&full_pose);
     let verts_t_pose = smpl_model.betas2verts(&betas);
     let joints = smpl_model.verts2joints(verts_t_pose.clone());
+    let kinematic_tree_depth = smpl_model.kinematic_tree_depth();
     bencher.bench_local(move || {
         black_box(batch_rigid_transform_burn_fast(
             black_box(smpl_model.parent_idx_per_joint.clone()),
             black_box(&smpl_model.parent_idx_per_joint_nd),
             black_box(rot_mats_t.clone()),
             black_box(joints.clone()),
+            black_box(kinematic_tree_depth),
         ));
         B::sync(&smpl_model.device);
     });

@@ -21,9 +21,9 @@ impl TransformSequence {
     /// Will panic if the number of frames in translations and rotations do not match.
     pub fn new_from_npz(path: &str) -> Self {
         let mut npz = NpzReader::new(std::fs::File::open(path).unwrap()).unwrap();
-        let translations: nd::Array2<f32> = npz.by_name("translation").unwrap();
-        let rotations: nd::Array2<f32> = npz.by_name("rotation").unwrap();
-        let scales: nd::Array1<f32> = npz.by_name("objectSize").unwrap();
+        let translations: nd::Array2<f32> = npz.by_name("translation.npy").unwrap();
+        let rotations: nd::Array2<f32> = npz.by_name("rotation.npy").unwrap();
+        let scales: nd::Array1<f32> = npz.by_name("objectSize.npy").unwrap();
         assert_eq!(
             translations.shape()[0],
             rotations.shape()[0],
@@ -47,7 +47,7 @@ impl TransformSequence {
         }
     }
     /// Create a `TransformSequence` from a translations and quaternion rotations
-    pub fn new_from_rot_trans(rot: &nd::Array2<f32>, trans: &nd::Array2<f32>) -> Self {
+    pub fn new_from_quat_rot_trans(rot: &nd::Array2<f32>, trans: &nd::Array2<f32>) -> Self {
         assert_eq!(
             rot.shape()[1],
             4,
@@ -69,6 +69,21 @@ impl TransformSequence {
         Self {
             translations: trans.clone(),
             rotations,
+            scales,
+        }
+    }
+    /// Create a `TransformSequence` from a translations and axis-angle rotations
+    pub fn new_from_axisangle_rot_trans(rot: &nd::Array2<f32>, trans: &nd::Array2<f32>) -> Self {
+        assert_eq!(
+            rot.shape()[1],
+            3,
+            "Rotations must be in axis-angle format (nr_frames x 3); found rotations of shape {:?}",
+            rot.shape()
+        );
+        let scales = nd::Array1::<f32>::ones(trans.shape()[0]);
+        Self {
+            translations: trans.clone(),
+            rotations: rot.clone(),
             scales,
         }
     }

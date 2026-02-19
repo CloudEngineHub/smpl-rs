@@ -22,6 +22,7 @@ use smpl_core::{
         pose_override::PoseOverride,
         smpl_params::SmplParams,
         transform_sequence::TransformSequence,
+        vertex_offsets::VertexOffsets,
     },
 };
 use smpl_utils::numerical::hex_to_rgb_f32;
@@ -37,7 +38,7 @@ pub trait McsCodecGloss {
 impl McsCodecGloss for McsCodec {
     fn from_scene(scene: &Scene) -> Self {
         let mut smpl_bodies = Vec::new();
-        let mut smpl_camera_query = scene.world.query::<(&ProjectionWithFov, &TransformSequence)>();
+        let mut smpl_camera_query = scene.world().query::<(&ProjectionWithFov, &TransformSequence)>();
         let smpl_camera = smpl_camera_query.iter().next().map(|(_, (projection, transform_sequence))| SmplCamera {
             projection: projection.clone(),
             transform_sequence: transform_sequence.clone(),
@@ -47,7 +48,7 @@ impl McsCodecGloss for McsCodec {
         } else {
             (1, None)
         };
-        let mut query_state = scene.world.query::<&SmplParams>();
+        let mut query_state = scene.world().query::<&SmplParams>();
         for (entity, _) in query_state.iter() {
             let smpl_codec = SmplCodec::from_entity(&entity, scene, None);
             let smpl_interval = if let Ok(animation) = scene.get_comp::<&Animation>(&entity) {
@@ -124,6 +125,9 @@ impl McsCodecGloss for McsCodec {
                 let trimmed_betas = betas.betas.clone().slice([..10]);
                 betas.betas = trimmed_betas;
                 builder.add(betas);
+            }
+            if let Some(vertex_offsets) = VertexOffsets::new_from_smpl_codec(&smpl_body.codec) {
+                builder.add(vertex_offsets);
             }
             let pose_override = PoseOverride::allow_all();
             builder.add(pose_override);

@@ -2,6 +2,8 @@ use crate::systems::apply_transform_sequence;
 #[cfg(feature = "with-gui")]
 use crate::systems::camera_gui;
 use crate::systems::reset_camera_takeover;
+#[cfg(feature = "with-gui")]
+use crate::systems::scene_params_gui;
 use crate::systems::set_camera_takeover;
 #[cfg(feature = "with-gui")]
 use crate::systems::smpl_anim_scroll_gui;
@@ -84,8 +86,9 @@ impl Plugin for SmplPlugin {
     fn gui_systems(&self) -> Vec<GuiSystem> {
         let mut vec = Vec::new();
         cfg_if::cfg_if! {
-            if #[cfg(feature = "with-gui")] { vec.push(GuiSystem::new(smpl_params_gui));
-            vec.push(GuiSystem::new(smpl_betas_gui)); vec
+            if #[cfg(feature = "with-gui")] { vec.push(GuiSystem::new(scene_params_gui));
+            vec.push(GuiSystem::new(smpl_params_gui)); vec
+            .push(GuiSystem::new(smpl_betas_gui)); vec
             .push(GuiSystem::new(smpl_expression_gui)); vec
             .push(GuiSystem::new(smpl_vertex_offset_gui)); vec
             .push(GuiSystem::new(smpl_anim_scroll_gui)); vec
@@ -94,5 +97,8 @@ impl Plugin for SmplPlugin {
             .push(GuiSystem::new(camera_gui)); } else {}
         }
         vec
+    }
+    fn init_system(&self) -> Option<gloss_renderer::plugin_manager::InitSystem> {
+        None
     }
 }
